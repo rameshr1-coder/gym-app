@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PPL & Bag Workout Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            overscroll-behavior-y: contain;
+            -webkit-tap-highlight-color: transparent; 
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        .rating-button {
+            transition: all 0.2s ease;
+        }
+        .rating-button:not(.selected):hover {
+            transform: scale(1.05);
+        }
+        .rating-button.selected {
+            transform: scale(1.15);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 h-[100dvh] flex justify-center">
+
+    <div class="w-full h-full max-w-md bg-slate-50 relative flex flex-col shadow-2xl overflow-hidden font-sans">
+        
+        <!-- ================= VIEW: DASHBOARD ================= -->
+        <div id="view-dashboard" class="view-section flex-1 overflow-y-auto p-6 pb-28 w-full hidden">
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-6">Train.</h1>
+            
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="startWorkout('Push')" class="bg-white border border-slate-200 shadow-sm p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-red-400 hover:shadow-md transition-all active:scale-95 group">
+                    <div class="bg-red-50 p-3 rounded-full text-red-600 group-hover:bg-red-100 transition-colors"><i class="ph-fill ph-hand-fist text-2xl"></i></div>
+                    <span class="font-bold text-slate-800 text-sm">Push</span>
+                </button>
+                <button onclick="startWorkout('Pull')" class="bg-white border border-slate-200 shadow-sm p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:shadow-md transition-all active:scale-95 group">
+                    <div class="bg-blue-50 p-3 rounded-full text-blue-600 group-hover:bg-blue-100 transition-colors"><i class="ph-fill ph-hand-grabbing text-2xl"></i></div>
+                    <span class="font-bold text-slate-800 text-sm">Pull</span>
+                </button>
+                <button onclick="startWorkout('Legs')" class="bg-white border border-slate-200 shadow-sm p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-green-400 hover:shadow-md transition-all active:scale-95 group">
+                    <div class="bg-green-50 p-3 rounded-full text-green-600 group-hover:bg-green-100 transition-colors"><i class="ph-fill ph-person text-2xl"></i></div>
+                    <span class="font-bold text-slate-800 text-sm">Legs</span>
+                </button>
+            </div>
+            
+            <!-- Backup & Restore Section -->
+            <div class="mt-8 p-5 bg-slate-800 rounded-2xl shadow-lg border border-slate-700">
+                <h3 class="text-white font-bold mb-3 flex items-center text-lg">
+                    <i class="ph-fill ph-database mr-2 text-blue-400"></i> Backup & Restore
+                </h3>
+                <div class="flex gap-3">
+                    <button onclick="exportWorkoutData()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 px-2 rounded-xl font-bold shadow-sm transition-colors flex justify-center items-center gap-2 text-sm">
+                        <i class="ph-bold ph-download-simple"></i> Export
+                    </button>
+                    <label class="flex-1 bg-slate-600 hover:bg-slate-500 text-white py-3 px-2 rounded-xl font-bold shadow-sm transition-colors text-center cursor-pointer flex justify-center items-center gap-2 text-sm">
+                        <i class="ph-bold ph-upload-simple"></i> Import
+                        <input type="file" accept=".json" onchange="importWorkoutData(event)" class="hidden" />
+                    </label>
+                </div>
+                <p class="text-slate-400 text-xs mt-3 leading-relaxed">Export your data to a file before clearing history or switching phones to keep your PBs safe.</p>
+            </div>
+
+            <!-- History List -->
+            <h2 class="text-xl font-bold text-slate-800 pt-8 mb-4">Recent Sessions</h2>
+            <div id="history-list" class="space-y-3"></div>
+        </div>
+
+        <!-- ================= VIEW: ACTIVE WORKOUT ================= -->
+        <div id="view-active-workout" class="view-section hidden flex-1 flex flex-col w-full bg-slate-50 overflow-hidden">
+            <div id="active-workout-container" class="flex-1 overflow-y-auto h-full"></div>
+        </div>
+
+        <!-- ================= VIEW: BAG WORKOUT ================= -->
+        <div id="view-bag" class="view-section hidden flex-1 overflow-y-auto p-4 pb-28 w-full bg-slate-50">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="bg-purple-100 p-2 rounded-xl">
+                    <i class="ph-bold ph-fist text-purple-600 text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Bag Work</h1>
+            </div>
+            
+            <div id="bag-content-container"></div>
+        </div>
+
+        <!-- ================= VIEW: PBs ================= -->
+        <div id="view-pbs" class="view-section hidden flex-1 overflow-y-auto p-4 pb-28 w-full bg-slate-50">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="bg-amber-100 p-2 rounded-xl">
+                    <i class="ph-bold ph-trophy text-amber-600 text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Progress</h1>
+            </div>
+            
+            <div id="pb-content-container"></div>
+        </div>
+
+        <!-- ================= BOTTOM NAVIGATION ================= -->
+        <div id="bottom-nav" class="absolute bottom-0 w-full bg-white border-t border-slate-200 px-6 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40">
+            <button id="nav-workouts" onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center gap-1 transition-colors text-blue-600">
+                <i class="ph-fill ph-barbell text-2xl"></i>
+                <span class="text-[10px] font-bold">Log</span>
+            </button>
+            
+            <button id="nav-bag" onclick="switchTab('bag')" class="nav-btn flex flex-col items-center gap-1 transition-colors text-slate-400 hover:text-slate-600">
+                <i class="ph-bold ph-fist text-2xl"></i>
+                <span class="text-[10px] font-bold">Bag</span>
+            </button>
+            
+            <button id="nav-pbs" onclick="switchTab('pbs')" class="nav-btn flex flex-col items-center gap-1 transition-colors text-slate-400 hover:text-slate-600">
+                <i class="ph-bold ph-trophy text-2xl" id="nav-pbs-icon"></i>
+                <span class="text-[10px] font-bold">PBs</span>
+            </button>
+        </div>
+        
+        <!-- ================= CUSTOM MODAL OVERLAY ================= -->
+        <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+            <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl overflow-y-auto max-h-[80vh]" id="modal-content">
+                <!-- Modal content goes here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Default Exercises
+        const DEFAULT_EXERCISES = {
+            Push: [
+                { id: 'p1', name: 'Barbell Bench Press', alternatives: ['Dumbbell Bench Press', 'Machine Chest Press'] },
+                { id: 'p2', name: 'Incline Dumbbell Press', alternatives: ['Incline Barbell Press', 'Smith Machine Incline'] },
+                { id: 'p3', name: 'Overhead Press', alternatives: ['Dumbbell Shoulder Press', 'Machine Shoulder Press'] },
+                { id: 'p4', name: 'Lateral Raises', alternatives: ['Cable Lateral Raises', 'Machine Lateral Raises'] },
+                { id: 'p5', name: 'Tricep Pushdowns', alternatives: ['Overhead Tricep Extension', 'Skull Crushers'] },
+                { id: 'p6', name: 'Skull Crushers', alternatives: ['Close Grip Bench Press', 'Dips'] }
+            ],
+            Pull: [
+                { id: 'pl1', name: 'Deadlifts', alternatives: ['Sumo Deadlifts', 'Rack Pulls'] },
+                { id: 'pl2', name: 'Pull Ups', alternatives: ['Lat Pulldowns', 'Assisted Pull Ups'] },
+                { id: 'pl3', name: 'Barbell Rows', alternatives: ['Dumbbell Rows', 'T-Bar Rows'] },
+                { id: 'pl4', name: 'Lat Pulldowns', alternatives: ['Pull Ups', 'Straight Arm Pulldowns'] },
+                { id: 'pl5', name: 'Face Pulls', alternatives: ['Rear Delt Flys', 'Reverse Pec Deck'] },
+                { id: 'pl6', name: 'Bicep Curls', alternatives: ['Hammer Curls', 'Preacher Curls'] }
+            ],
+            Legs: [
+                { id: 'l1', name: 'Squats', alternatives: ['Leg Press', 'Hack Squats', 'Front Squats'] },
+                { id: 'l2', name: 'Romanian Deadlifts', alternatives: ['Leg Curls', 'Good Mornings'] },
+                { id: 'l3', name: 'Leg Press', alternatives: ['Squats', 'Lunges'] },
+                { id: 'l4', name: 'Leg Extensions', alternatives: ['Sissy Squats'] },
+                { id: 'l5', name: 'Hamstring Curls', alternatives: ['Romanian Deadlifts', 'Glute Ham Raises'] },
+                { id: 'l6', name: 'Calf Raises', alternatives: ['Seated Calf Raises'] }
+            ]
+        };
+
+        // State variables
+        let exercises = JSON.parse(localStorage.getItem('workout_exercises')) || DEFAULT_EXERCISES;
+        let historyData = JSON.parse(localStorage.getItem('workout_history')) || [];
+        let bagWorkoutData = JSON.parse(localStorage.getItem('bag_workout_history')) || [];
+        let personalBests = JSON.parse(localStorage.getItem('workout_pbs')) || {};
+        let currentSession = null;
+        let swappingExIdx = null;
+        let currentTab = 'dashboard';
+        let pbChartInstance = null;
+
+        function showMessage(title, message) {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            content.innerHTML = `
+                <h3 class="text-xl font-extrabold text-slate-800 mb-2">${title}</h3>
+                <p class="text-slate-600 mb-6 leading-relaxed">${message}</p>
+                <button onclick="hideModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">OK</button>
+            `;
+            overlay.classList.remove('hidden');
+        }
+
+        function showConfirm(title, message, onConfirm) {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            window.currentConfirmCallback = () => { hideModal(); onConfirm(); };
+            content.innerHTML = `
+                <h3 class="text-xl font-extrabold text-slate-800 mb-2">${title}</h3>
+                <p class="text-slate-600 mb-6 leading-relaxed">${message}</p>
+                <div class="flex gap-3">
+                    <button onclick="hideModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-3 rounded-xl transition-colors">Cancel</button>
+                    <button onclick="window.currentConfirmCallback()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-colors">Confirm</button>
+                </div>
+            `;
+            overlay.classList.remove('hidden');
+        }
+
+        function hideModal() {
+            document.getElementById('modal-overlay').classList.add('hidden');
+        }
+
+        function saveData() {
+            localStorage.setItem('workout_exercises', JSON.stringify(exercises));
+            localStorage.setItem('workout_history', JSON.stringify(historyData));
+            localStorage.setItem('workout_pbs', JSON.stringify(personalBests));
+            localStorage.setItem('bag_workout_history', JSON.stringify(bagWorkoutData));
+        }
+
+        function calculatePBs() {
+            personalBests = {};
+            historyData.forEach(session => {
+                session.exercises.forEach(ex => {
+                    ex.sets.forEach(set => {
+                        const w = parseFloat(set.weight);
+                        const r = parseInt(set.reps);
+                        if (w > 0 && r > 0) {
+                            if (!personalBests[ex.name] || w > personalBests[ex.name].weight) {
+                                personalBests[ex.name] = { weight: w, reps: r, date: session.date };
+                            }
+                        }
+                    });
+                });
+            });
+            saveData();
+        }
+
+        function formatDate(isoString) {
+            return new Date(isoString).toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function switchTab(tab) {
+            if (currentSession && tab !== 'active-workout') {
+                showConfirm("Cancel Workout?", "You are currently logging a workout. Leaving this page will lose your unsaved sets.", () => {
+                    currentSession = null;
+                    document.getElementById('bottom-nav').classList.remove('hidden');
+                    switchTab(tab);
+                });
+                return;
+            }
+
+            currentTab = tab;
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            
+            // Reset Nav Styling
+            ['workouts', 'bag', 'pbs'].forEach(id => {
+                const btn = document.getElementById(`nav-${id}`);
+                if(btn) {
+                    btn.classList.remove('text-blue-600', 'text-purple-600', 'text-amber-500');
+                    btn.classList.add('text-slate-400');
+                    const icon = btn.querySelector('i');
+                    if(icon) { icon.classList.remove('ph-fill'); icon.classList.add('ph-bold'); }
+                }
+            });
+
+            if (tab === 'dashboard') {
+                document.getElementById('view-dashboard').classList.remove('hidden');
+                document.getElementById('nav-workouts').classList.replace('text-slate-400', 'text-blue-600');
+                document.getElementById('nav-workouts').querySelector('i').classList.replace('ph-bold', 'ph-fill');
+                renderHistory();
+            } else if (tab === 'active-workout') {
+                document.getElementById('view-active-workout').classList.remove('hidden');
+                document.getElementById('bottom-nav').classList.add('hidden');
+                renderActiveWorkout();
+            } else if (tab === 'bag') {
+                document.getElementById('view-bag').classList.remove('hidden');
+                document.getElementById('nav-bag').classList.replace('text-slate-400', 'text-purple-600');
+                document.getElementById('nav-bag').querySelector('i').classList.replace('ph-bold', 'ph-fill');
+                renderBagWorkout();
+            } else if (tab === 'pbs') {
+                document.getElementById('view-pbs').classList.remove('hidden');
+                document.getElementById('nav-pbs').classList.replace('text-slate-400', 'text-amber-500');
+                document.getElementById('nav-pbs').querySelector('i').classList.replace('ph-bold', 'ph-fill');
+                renderPBs();
+            }
+        }
+
+        function exportWorkoutData() {
+            try {
+                const dataDump = JSON.stringify(localStorage);
+                const blob = new Blob([dataDump], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `workout-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showMessage("Success", "Your workout data backup has been successfully downloaded to your device.");
+            } catch (e) {
+                showMessage("Error", "Error exporting data: " + e.message);
+            }
+        }
+
+        function importWorkoutData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    showConfirm("Restore Data", "This will COMPLETELY OVERWRITE your current app data with the selected backup. Are you absolutely sure?", () => {
+                        Object.keys(importedData).forEach(key => {
+                            localStorage.setItem(key, importedData[key]);
+                        });
+                        showMessage("Success", "Workout data restored successfully! The app will now reload.");
+                        setTimeout(() => location.reload(), 1500);
+                    });
+                } catch (error) {
+                    showMessage("Error", "Invalid backup file format.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = "";
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            if (historyData.length === 0) {
+                list.innerHTML = `<div class="text-center text-slate-500 py-8 bg-white rounded-xl border border-dashed border-slate-300">
+                    <p>No workouts logged yet.</p><p class="text-sm mt-1">Select a split above to start.</p></div>`;
+                return;
+            }
+            list.innerHTML = historyData.slice(0, 10).map(session => `
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-bold text-slate-800 flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full ${session.split==='Push'?'bg-red-400':session.split==='Pull'?'bg-blue-400':'bg-green-400'}"></span>
+                            ${session.split} Day
+                        </div>
+                        <button onclick="deleteSession('${session.id}')" class="text-slate-400 hover:text-red-500 transition-colors p-1">
+                            <i class="ph-bold ph-trash text-lg"></i>
+                        </button>
+                    </div>
+                    <div class="text-sm text-slate-600">${session.exercises.length} exercises • ${session.exercises.reduce((acc, ex) => acc + ex.sets.length, 0)} sets</div>
+                    <div class="text-xs text-slate-500">${formatDate(session.date)}</div>
+                    <div class="mt-2 text-xs text-slate-500 truncate">${session.exercises.map(e => e.name).join(', ')}</div>
+                    ${session.rating ? `<div class="mt-2 pt-2 border-t border-slate-200 text-xs font-semibold text-amber-600">Feeling: ${session.rating}/10</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function deleteSession(sessionId) {
+            showConfirm("Delete Session?", "Are you sure you want to delete this workout session? This cannot be undone.", () => {
+                historyData = historyData.filter(s => s.id !== sessionId);
+                calculatePBs();
+                renderHistory();
+            });
+        }
+
+        function saveSessionToStorage() {
+            if (currentSession) {
+                localStorage.setItem('active_session_draft', JSON.stringify(currentSession));
+            }
+        }
+
+        function loadSessionFromStorage() {
+            const saved = localStorage.getItem('active_session_draft');
+            if (saved) {
+                try {
+                    currentSession = JSON.parse(saved);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        function clearSessionDraft() {
+            localStorage.removeItem('active_session_draft');
+        }
+
+        function goBack() {
+            showConfirm("Save Progress?", "Do you want to save this session draft? You can return to it later by pressing the same split button.", () => {
+                saveSessionToStorage();
+                currentSession = null;
+                document.getElementById('bottom-nav').classList.remove('hidden');
+                switchTab('dashboard');
+            });
+        }
+
+        function getLastSessionTemplate(split) {
+            // Find the most recent session of this split type
+            const lastSession = historyData.find(s => s.split === split);
+            if (!lastSession) return null;
+            
+            // Return template with just the exercise names and optionally the weight/reps from last time
+            return lastSession.exercises.map(ex => ({
+                name: ex.name,
+                lastWeight: ex.sets.length > 0 ? ex.sets[0].weight : ''
+            }));
+        }
+
+        function startWorkout(split) {
+            // Check if there's a saved draft
+            if (loadSessionFromStorage() && currentSession.split === split) {
+                // Draft exists for this split, just switch to it
+                swappingExIdx = null;
+                switchTab('active-workout');
+                return;
+            }
+
+            // Otherwise, create a fresh session
+            clearSessionDraft();
+            const lastTemplate = getLastSessionTemplate(split);
+            
+            currentSession = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                split: split,
+                rating: 0,
+                exercises: JSON.parse(JSON.stringify(exercises[split])).map(ex => {
+                    const lastEx = lastTemplate?.find(l => l.name === ex.name);
+                    return {
+                        ...ex, 
+                        baseId: ex.id, 
+                        sets: [{ weight: lastEx?.lastWeight || '', reps: '' }]
+                    };
+                })
+            };
+            swappingExIdx = null;
+            switchTab('active-workout');
+        }
+
+        function getBaseExercise(split, baseId) {
+            if (!baseId) return null;
+            return exercises[split].find(e => e.id === baseId);
+        }
+
+        function handleInput(exIdx, setIdx, field, value) {
+            currentSession.exercises[exIdx].sets[setIdx][field] = value;
+        }
+
+        function addSet(exIdx) {
+            const sets = currentSession.exercises[exIdx].sets;
+            const lastSet = sets[sets.length - 1];
+            sets.push({ weight: lastSet ? lastSet.weight : '', reps: lastSet ? lastSet.reps : '' });
+            renderActiveWorkout();
+        }
+
+        function removeSet(exIdx, setIdx) {
+            currentSession.exercises[exIdx].sets.splice(setIdx, 1);
+            renderActiveWorkout();
+        }
+
+        function removeExercise(exIdx) {
+            currentSession.exercises.splice(exIdx, 1);
+            renderActiveWorkout();
+        }
+
+        function toggleSwapUI(exIdx) {
+            swappingExIdx = swappingExIdx === exIdx ? null : exIdx;
+            renderActiveWorkout();
+        }
+
+        function executeSwap(exIdx, newName, baseId) {
+            if (!newName || !newName.trim()) return;
+            const cleanName = newName.trim();
+            currentSession.exercises[exIdx].name = cleanName;
+            
+            const baseEx = getBaseExercise(currentSession.split, baseId);
+            if (baseEx) {
+                if (baseEx.name !== cleanName && !baseEx.alternatives.includes(cleanName)) {
+                    baseEx.alternatives.push(cleanName);
+                    saveData();
+                }
+            }
+            swappingExIdx = null;
+            renderActiveWorkout();
+        }
+
+        function addExtraExercise() {
+            const name = document.getElementById('new-ex-name').value.trim();
+            if (!name) return;
+            const newId = Date.now().toString();
+            currentSession.exercises.push({ id: newId, baseId: newId, name: name, sets: [{ weight: '', reps: '' }] });
+            
+            if (!exercises[currentSession.split].find(e => e.name.toLowerCase() === name.toLowerCase())) {
+                exercises[currentSession.split].push({ id: newId, name: name, alternatives: [] });
+                saveData();
+            }
+            document.getElementById('new-ex-name').value = '';
+            renderActiveWorkout();
+        }
+
+        function setSessionRating(rating) {
+            currentSession.rating = rating;
+            renderActiveWorkout();
+        }
+
+        function finishWorkout() {
+            currentSession.exercises = currentSession.exercises.map(ex => ({
+                ...ex,
+                sets: ex.sets.filter(s => s.weight !== '' || s.reps !== '').map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }))
+            })).filter(ex => ex.sets.length > 0);
+
+            if (currentSession.exercises.length > 0) {
+                historyData.unshift(currentSession);
+                calculatePBs();
+            }
+            
+            clearSessionDraft();
+            currentSession = null;
+            document.getElementById('bottom-nav').classList.remove('hidden');
+            switchTab('dashboard');
+        }
+
+        function renderActiveWorkout() {
+            if(!currentSession) return;
+            saveSessionToStorage();
+            const container = document.getElementById('active-workout-container');
+            
+            let html = `
+                <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md sticky top-0 z-20">
+                    <button onclick="goBack()" class="text-white p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                        <i class="ph-bold ph-caret-left text-2xl"></i>
+                    </button>
+                    <div>
+                        <h2 class="text-xl font-bold">${currentSession.split} Day</h2>
+                        <p class="text-slate-400 text-sm">Logging workout...</p>
+                    </div>
+                    <button onclick="finishWorkout()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm flex items-center gap-2 transition-colors">
+                        <i class="ph-bold ph-check-circle text-lg"></i> Finish
+                    </button>
+                </div>
+                <div class="p-4 space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+            `;
+            
+            currentSession.exercises.forEach((ex, exIdx) => {
+                const baseEx = getBaseExercise(currentSession.split, ex.baseId);
+                const isSwapping = swappingExIdx === exIdx;
+                
+                html += `<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">`;
+                
+                if (isSwapping) {
+                    html += `
+                    <div class="bg-slate-100 p-3 border-b border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-bold text-slate-700">Swap Exercise</span>
+                            <button onclick="toggleSwapUI(null)" class="text-slate-500 text-xs font-semibold">Cancel</button>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mb-3">`;
+                    
+                    if (baseEx && baseEx.name !== ex.name) {
+                        html += `<button onclick="executeSwap(${exIdx}, '${baseEx.name}', '${ex.baseId}')" class="px-3 py-1 bg-white border border-slate-300 shadow-sm rounded-full text-xs font-semibold text-slate-700">${baseEx.name} (Original)</button>`;
+                    }
+                    if (baseEx) {
+                        baseEx.alternatives.filter(alt => alt !== ex.name).forEach(alt => {
+                            html += `<button onclick="executeSwap(${exIdx}, '${alt}', '${ex.baseId}')" class="px-3 py-1 bg-white border border-slate-300 shadow-sm rounded-full text-xs font-semibold text-slate-700">${alt}</button>`;
+                        });
+                    }
+                    html += `
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="custom-alt-${exIdx}" placeholder="Or type a new alternative..." class="flex-1 bg-white border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
+                            <button onclick="executeSwap(${exIdx}, document.getElementById('custom-alt-${exIdx}').value, '${ex.baseId}')" class="bg-slate-800 text-white font-semibold px-3 rounded-lg text-sm">Swap</button>
+                        </div>
+                    </div>`;
+                } else {
+                    html += `
+                    <div class="bg-slate-100 p-3 flex justify-between items-center border-b border-slate-200">
+                        <h3 class="font-bold text-slate-800 flex flex-wrap items-center gap-2 leading-tight">
+                            ${ex.name}
+                            ${(baseEx && baseEx.name !== ex.name) ? `<span class="text-[10px] font-normal text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-sm">Alt for ${baseEx.name}</span>` : ''}
+                        </h3>
+                        <div class="flex gap-2">
+                            <button onclick="toggleSwapUI(${exIdx})" class="text-slate-400 hover:text-blue-500 p-1"><i class="ph-bold ph-arrows-left-right text-lg"></i></button>
+                            <button onclick="removeExercise(${exIdx})" class="text-slate-400 hover:text-red-500 p-1"><i class="ph-bold ph-trash text-lg"></i></button>
+                        </div>
+                    </div>`;
+                }
+
+                html += `<div class="p-3">
+                    <div class="grid grid-cols-12 gap-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 px-2 text-center">
+                        <div class="col-span-2">Set</div><div class="col-span-4">kg</div><div class="col-span-4">Reps</div><div class="col-span-2"></div>
+                    </div>`;
+                
+                ex.sets.forEach((set, setIdx) => {
+                    html += `
+                    <div class="grid grid-cols-12 gap-2 items-center mb-2 px-2">
+                        <div class="col-span-2 text-center font-bold text-slate-600 bg-slate-100 py-2 rounded-lg">${setIdx + 1}</div>
+                        <div class="col-span-4">
+                            <input type="number" inputmode="decimal" oninput="handleInput(${exIdx}, ${setIdx}, 'weight', this.value)" value="${set.weight}" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-center font-semibold outline-none focus:border-blue-500 focus:bg-white transition-all" placeholder="--">
+                        </div>
+                        <div class="col-span-4">
+                            <input type="number" inputmode="numeric" oninput="handleInput(${exIdx}, ${setIdx}, 'reps', this.value)" value="${set.reps}" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-center font-semibold outline-none focus:border-blue-500 focus:bg-white transition-all" placeholder="--">
+                        </div>
+                        <div class="col-span-2 flex justify-center">
+                            <button onclick="removeSet(${exIdx}, ${setIdx})" class="text-slate-400 hover:text-red-500 p-1"><i class="ph-bold ph-x text-lg"></i></button>
+                        </div>
+                    </div>`;
+                });
+                
+                html += `
+                    <button onclick="addSet(${exIdx})" class="w-full mt-3 py-2.5 text-sm font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-1">
+                        <i class="ph-bold ph-plus"></i> Add Set
+                    </button>
+                </div></div>`;
+            });
+            
+            // Feeling Rating
+            html += `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                    <h4 class="text-sm font-bold text-slate-700 mb-3">How are you feeling?</h4>
+                    <div class="flex justify-between gap-1">
+                        ${[1,2,3,4,5,6,7,8,9,10].map(num => `
+                            <button onclick="setSessionRating(${num})" class="rating-button w-8 h-8 rounded-lg font-bold text-xs transition-all ${currentSession.rating === num ? 'bg-amber-500 text-white selected' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                                ${num}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            html += `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <h4 class="text-sm font-bold text-slate-700 mb-3">Add Another Exercise</h4>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-ex-name" placeholder="E.g. Pec Deck..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium outline-none focus:border-blue-500 focus:bg-white transition-all">
+                        <button onclick="addExtraExercise()" class="bg-slate-800 text-white font-bold px-5 py-3 rounded-xl shadow-sm">Add</button>
+                    </div>
+                </div>
+            </div>`;
+            
+            container.innerHTML = html;
+        }
+
+        // BAG WORKOUT FUNCTIONS
+        function renderBagWorkout() {
+            const container = document.getElementById('bag-content-container');
+            
+            if (bagWorkoutData.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-slate-500 py-8 bg-white rounded-xl border border-dashed border-slate-300 mb-4">
+                        <i class="ph-fill ph-fist text-5xl mx-auto text-slate-300 mb-3"></i>
+                        <p>No bag sessions logged yet.</p>
+                        <p class="text-sm mt-1">Log your first boxing/muay thai session below.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                        <h3 class="text-sm font-bold text-slate-700 mb-3">Recent Sessions</h3>
+                        <div class="space-y-2">
+                            ${bagWorkoutData.slice(0, 5).map(session => `
+                                <div class="flex justify-between items-start p-3 bg-slate-50 rounded-lg text-sm">
+                                    <div>
+                                        <div class="font-bold text-slate-800">${session.rounds} rounds × ${session.roundLength}min</div>
+                                        <div class="text-xs text-slate-500">${formatDate(session.date)}</div>
+                                    </div>
+                                    <button onclick="deleteBagSession('${session.id}')" class="text-slate-400 hover:text-red-500"><i class="ph-bold ph-trash text-lg"></i></button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML += `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <h3 class="text-sm font-bold text-slate-700 mb-4">Log New Session</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Number of Rounds</label>
+                            <input type="number" id="bag-rounds" placeholder="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-lg font-bold outline-none focus:border-purple-500 focus:bg-white transition-all" value="5">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Round Length (minutes)</label>
+                            <input type="number" id="bag-length" placeholder="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-lg font-bold outline-none focus:border-purple-500 focus:bg-white transition-all" value="3">
+                        </div>
+                        <button onclick="addBagSession()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl shadow-sm transition-colors">
+                            <i class="ph-bold ph-plus mr-2"></i>Log Session
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addBagSession() {
+            const rounds = parseInt(document.getElementById('bag-rounds').value);
+            const roundLength = parseInt(document.getElementById('bag-length').value);
+            
+            if (!rounds || rounds < 1 || !roundLength || roundLength < 1) {
+                showMessage("Invalid Input", "Please enter valid numbers for rounds and round length.");
+                return;
+            }
+
+            const session = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                rounds: rounds,
+                roundLength: roundLength
+            };
+
+            bagWorkoutData.unshift(session);
+            saveData();
+            renderBagWorkout();
+            showMessage("Success", `Logged ${rounds} rounds of ${roundLength} minutes!`);
+        }
+
+        function deleteBagSession(sessionId) {
+            showConfirm("Delete Session?", "Are you sure you want to delete this bag workout session?", () => {
+                bagWorkoutData = bagWorkoutData.filter(s => s.id !== sessionId);
+                saveData();
+                renderBagWorkout();
+            });
+        }
+
+        function renderPBs() {
+            const uniqueEx = new Set();
+            historyData.forEach(session => session.exercises.forEach(ex => uniqueEx.add(ex.name)));
+            const exercisesList = Array.from(uniqueEx).sort();
+            const container = document.getElementById('pb-content-container');
+
+            if (exercisesList.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-500 py-12 bg-white rounded-xl border border-dashed border-slate-300">
+                    <i class="ph-fill ph-trophy text-5xl mx-auto text-slate-300 mb-3"></i>
+                    <p>No data recorded yet.</p><p class="text-sm mt-1">Log workouts to see your charts here.</p></div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Select Exercise</label>
+                    <div class="relative">
+                        <select id="pb-select" onchange="updatePBChart()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-3 appearance-none font-semibold outline-none">
+                            ${exercisesList.map(ex => `<option value="${ex}">${ex}</option>`).join('')}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500"><i class="ph-bold ph-caret-down"></i></div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="mb-4">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider">All-Time Max Record</h3>
+                        <p id="pb-max-display" class="text-4xl font-black text-slate-900 mt-1">-- kg</p>
+                    </div>
+                    <div class="h-64 w-full relative"><canvas id="pbChartCanvas"></canvas></div>
+                </div>
+            `;
+            updatePBChart();
+        }
+
+        function updatePBChart() {
+            const select = document.getElementById('pb-select');
+            if(!select) return;
+            const exName = select.value;
+            
+            const dataMap = new Map();
+            historyData.forEach(session => {
+                const ex = session.exercises.find(e => e.name === exName);
+                if (ex) {
+                    const maxWeight = Math.max(...ex.sets.map(s => Number(s.weight) || 0), 0);
+                    if (maxWeight > 0) {
+                        const dateKey = new Date(session.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+                        if (!dataMap.has(dateKey) || dataMap.get(dateKey).weight < maxWeight) {
+                            dataMap.set(dateKey, { date: dateKey, timestamp: new Date(session.date).getTime(), weight: maxWeight });
+                        }
+                    }
+                }
+            });
+            
+            const chartData = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+            const allTimeMax = chartData.length > 0 ? Math.max(...chartData.map(d => d.weight)) : 0;
+            document.getElementById('pb-max-display').innerText = `${allTimeMax} kg`;
+
+            const ctx = document.getElementById('pbChartCanvas').getContext('2d');
+            if (pbChartInstance) pbChartInstance.destroy();
+            
+            pbChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(d => d.date),
+                    datasets: [{
+                        label: 'Max Weight (kg)',
+                        data: chartData.map(d => d.weight),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#3b82f6',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { displayColors: false, backgroundColor: '#1e293b', padding: 10, cornerRadius: 8, titleFont: {size: 13}, bodyFont: {size: 14, weight: 'bold'} } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: {family: 'Inter', size: 11} } },
+                        y: { border: {display: false}, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', font: {family: 'Inter', size: 11} } }
+                    }
+                }
+            });
+        }
+
+        // Init App on load
+        window.onload = () => {
+            calculatePBs();
+            switchTab('dashboard');
+        };
+    </script>
+</body>
+</html>
