@@ -17,15 +17,6 @@
             -webkit-appearance: none; 
             margin: 0; 
         }
-        .rating-button {
-            transition: all 0.2s ease;
-        }
-        .rating-button:not(.selected):hover {
-            transform: scale(1.05);
-        }
-        .rating-button.selected {
-            transform: scale(1.15);
-        }
     </style>
 </head>
 <body class="bg-slate-900 h-[100dvh] flex justify-center">
@@ -115,278 +106,214 @@
             </button>
             
             <button id="nav-pbs" onclick="switchTab('pbs')" class="nav-btn flex flex-col items-center gap-1 transition-colors text-slate-400 hover:text-slate-600">
-                <i class="ph-bold ph-trophy text-2xl" id="nav-pbs-icon"></i>
+                <i class="ph-bold ph-trophy text-2xl"></i>
                 <span class="text-[10px] font-bold">PBs</span>
             </button>
         </div>
         
-        <!-- ================= CUSTOM MODAL OVERLAY ================= -->
+        <!-- ================= MODAL OVERLAY ================= -->
         <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-            <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl overflow-y-auto max-h-[80vh]" id="modal-content">
-                <!-- Modal content goes here -->
-            </div>
+            <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl overflow-y-auto max-h-[80vh]" id="modal-content"></div>
         </div>
     </div>
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Default Exercises
         const DEFAULT_EXERCISES = {
-            Push: [
-                { id: 'p1', name: 'Barbell Bench Press', alternatives: ['Dumbbell Bench Press', 'Machine Chest Press'] },
-                { id: 'p2', name: 'Incline Dumbbell Press', alternatives: ['Incline Barbell Press', 'Smith Machine Incline'] },
-                { id: 'p3', name: 'Overhead Press', alternatives: ['Dumbbell Shoulder Press', 'Machine Shoulder Press'] },
-                { id: 'p4', name: 'Lateral Raises', alternatives: ['Cable Lateral Raises', 'Machine Lateral Raises'] },
-                { id: 'p5', name: 'Tricep Pushdowns', alternatives: ['Overhead Tricep Extension', 'Skull Crushers'] },
-                { id: 'p6', name: 'Skull Crushers', alternatives: ['Close Grip Bench Press', 'Dips'] }
-            ],
-            Pull: [
-                { id: 'pl1', name: 'Barbell Deadlift', alternatives: ['Dumbbell Deadlift', 'Trap Bar Deadlift'] },
-                { id: 'pl2', name: 'Pull-ups', alternatives: ['Assisted Pull-ups', 'Lat Pulldowns'] },
-                { id: 'pl3', name: 'Bent Over Rows', alternatives: ['Dumbbell Rows', 'T-Bar Rows'] },
-                { id: 'pl4', name: 'Barbell Curls', alternatives: ['Dumbbell Curls', 'EZ-Bar Curls'] },
-                { id: 'pl5', name: 'Face Pulls', alternatives: ['Reverse Pec Deck', 'Band Pull-Aparts'] },
-                { id: 'pl6', name: 'Shrugs', alternatives: ['Dumbbell Shrugs', 'Machine Shrugs'] }
-            ],
-            Legs: [
-                { id: 'l1', name: 'Barbell Squat', alternatives: ['Dumbbell Squat', 'Leg Press'] },
-                { id: 'l2', name: 'Leg Press', alternatives: ['Barbell Squat', 'Machine Squat'] },
-                { id: 'l3', name: 'Leg Curl', alternatives: ['Lying Leg Curl', 'Seated Leg Curl'] },
-                { id: 'l4', name: 'Leg Extension', alternatives: ['Machine Leg Extension', 'Sissy Squats'] },
-                { id: 'l5', name: 'Calf Raises', alternatives: ['Machine Calf Raises', 'Seated Calf Raises'] },
-                { id: 'l6', name: 'Romanian Deadlift', alternatives: ['Stiff Leg Deadlift', 'Leg Curl Machine'] }
-            ]
+            Push: ['Barbell Bench Press', 'Incline Dumbbell Press', 'Overhead Press', 'Lateral Raises', 'Tricep Pushdowns', 'Skull Crushers'],
+            Pull: ['Barbell Deadlift', 'Pull-ups', 'Bent Over Rows', 'Barbell Curls', 'Face Pulls', 'Shrugs'],
+            Legs: ['Barbell Squat', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Calf Raises', 'Romanian Deadlift']
         };
 
-        // Data Storage
         let historyData = [];
-        let bagWorkoutData = [];
-        let lastWorkoutTemplate = { Push: null, Pull: null, Legs: null }; // Memory for last workout
+        let lastWorkoutTemplate = { Push: null, Pull: null, Legs: null };
+        let currentWorkout = null;
         let pbChartInstance = null;
 
-        // Load data from localStorage
         function loadData() {
-            const savedHistory = localStorage.getItem('workoutHistory');
-            const savedBag = localStorage.getItem('bagWorkoutHistory');
-            const savedTemplate = localStorage.getItem('lastWorkoutTemplate');
-            
-            historyData = savedHistory ? JSON.parse(savedHistory) : [];
-            bagWorkoutData = savedBag ? JSON.parse(savedBag) : [];
-            lastWorkoutTemplate = savedTemplate ? JSON.parse(savedTemplate) : { Push: null, Pull: null, Legs: null };
+            const h = localStorage.getItem('workoutHistory');
+            const t = localStorage.getItem('lastWorkoutTemplate');
+            historyData = h ? JSON.parse(h) : [];
+            lastWorkoutTemplate = t ? JSON.parse(t) : { Push: null, Pull: null, Legs: null };
         }
 
-        // Save data to localStorage
         function saveData() {
             localStorage.setItem('workoutHistory', JSON.stringify(historyData));
-            localStorage.setItem('bagWorkoutHistory', JSON.stringify(bagWorkoutData));
             localStorage.setItem('lastWorkoutTemplate', JSON.stringify(lastWorkoutTemplate));
         }
 
-        // Start a workout
-        function startWorkout(workoutType) {
-            const workout = {
-                id: Date.now().toString(),
-                date: new Date().toISOString(),
-                type: workoutType,
-                exercises: [],
-                rating: null
-            };
-            
-            renderActiveWorkout(workout);
+        function startWorkout(type) {
+            currentWorkout = { id: Date.now().toString(), type, date: new Date().toISOString(), exercises: [] };
+            renderActiveWorkout(type);
         }
 
-        // Render the active workout screen
-        function renderActiveWorkout(workout) {
+        function renderActiveWorkout(type) {
             switchTab('active-workout');
             const container = document.getElementById('active-workout-container');
-            const lastTemplate = lastWorkoutTemplate[workout.type];
+            const template = lastWorkoutTemplate[type];
+            const exercises = template ? template.exercises.map(e => e.name) : DEFAULT_EXERCISES[type];
             
-            let exercisesHTML = '';
-            const exercisesToShow = lastTemplate && lastTemplate.exercises ? lastTemplate.exercises : DEFAULT_EXERCISES[workout.type];
-            
-            exercisesToShow.forEach((ex, index) => {
-                const exerciseName = typeof ex === 'string' ? ex : ex.name;
-                const lastSets = lastTemplate ? (lastTemplate.exercises.find(e => (typeof e === 'string' ? e : e.name) === exerciseName) || {}).sets || [] : [];
-                
-                exercisesHTML += `
-                    <div class="bg-white border-b border-slate-200 px-6 py-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="font-bold text-slate-900">${exerciseName}</h3>
-                            <button onclick="swapExercise(${index}, '${workout.type}', '${exerciseName}')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                                <i class="ph-bold ph-swap text-lg"></i>
-                            </button>
-                        </div>
-                        <div id="exercise-${index}-sets" class="space-y-2"></div>
-                        <button onclick="addSet(${index}, ${lastSets.length})" class="mt-3 text-sm text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1">
-                            <i class="ph-bold ph-plus text-lg"></i> Add Set
-                        </button>
-                        <script>
-                            renderSets(${index}, ${JSON.stringify(lastSets).replace(/"/g, '&quot;')});
-                        </script>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = `
+            let html = `
                 <div class="flex flex-col h-full bg-slate-50">
                     <div class="flex items-center justify-between bg-white border-b border-slate-200 p-6 sticky top-0 z-10">
                         <div>
-                            <h2 class="text-2xl font-extrabold text-slate-900">${workout.type}</h2>
-                            <p class="text-xs text-slate-500 mt-1">${new Date().toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                            <h2 class="text-2xl font-extrabold text-slate-900">${type}</h2>
+                            <p class="text-xs text-slate-500 mt-1">${new Date().toLocaleDateString('en-GB')}</p>
                         </div>
-                        <button onclick="finishWorkout('${workout.id}', '${workout.type}', '${workout.date}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        <button onclick="finishWorkout()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                             <i class="ph-bold ph-check mr-2"></i> Finish
                         </button>
                     </div>
                     <div class="flex-1 overflow-y-auto">
-                        ${exercisesHTML}
-                    </div>
-                </div>
             `;
+
+            exercises.forEach((exName, idx) => {
+                const lastSets = template ? (template.exercises.find(e => e.name === exName)?.sets || []) : [];
+                html += `
+                    <div class="bg-white border-b border-slate-200 px-6 py-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-900">${exName}</h3>
+                            <button onclick="showSwapModal(${idx}, '${type}')" class="text-slate-400 hover:text-slate-600">
+                                <i class="ph-bold ph-swap text-lg"></i>
+                            </button>
+                        </div>
+                        <div id="ex-${idx}-sets" class="space-y-2"></div>
+                        <button onclick="addSetUI(${idx})" class="mt-3 text-sm text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1">
+                            <i class="ph-bold ph-plus text-lg"></i> Add Set
+                        </button>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+            
+            // Populate sets
+            exercises.forEach((exName, idx) => {
+                const template = lastWorkoutTemplate[type];
+                const lastSets = template ? (template.exercises.find(e => e.name === exName)?.sets || []) : [];
+                renderSetsForExercise(idx, lastSets);
+            });
         }
 
-        function renderSets(exerciseIndex, sets) {
-            const container = document.getElementById(`exercise-${exerciseIndex}-sets`);
+        function renderSetsForExercise(exIdx, sets) {
+            const container = document.getElementById(`ex-${exIdx}-sets`);
             if (!container) return;
             
-            let setsHTML = sets.map((set, setIndex) => `
+            let html = sets.map((s, setIdx) => `
                 <div class="flex gap-2">
-                    <input type="number" placeholder="Weight" value="${set.weight || ''}" data-exercise="${exerciseIndex}" data-set="${setIndex}" data-field="weight" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                    <input type="number" placeholder="Reps" value="${set.reps || ''}" data-exercise="${exerciseIndex}" data-set="${setIndex}" data-field="reps" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                    <input type="number" placeholder="Sets" value="${set.sets || ''}" data-exercise="${exerciseIndex}" data-set="${setIndex}" data-field="sets" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                    <button onclick="removeSet(${exerciseIndex}, ${setIndex})" class="text-slate-400 hover:text-red-600 transition-colors">
+                    <input type="number" placeholder="Wt" value="${s.w || ''}" data-ex="${exIdx}" data-set="${setIdx}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
+                    <input type="number" placeholder="Reps" value="${s.r || ''}" data-ex="${exIdx}" data-set="${setIdx}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
+                    <input type="number" placeholder="Sets" value="${s.s || ''}" data-ex="${exIdx}" data-set="${setIdx}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
+                    <button onclick="removeSetUI(${exIdx}, ${setIdx})" class="text-slate-400 hover:text-red-600">
                         <i class="ph-bold ph-x text-lg"></i>
                     </button>
                 </div>
             `).join('');
             
-            container.innerHTML = setsHTML;
+            container.innerHTML = html;
         }
 
-        function addSet(exerciseIndex, currentSetCount) {
-            const container = document.getElementById(`exercise-${exerciseIndex}-sets`);
-            if (!container) return;
-            
+        function addSetUI(exIdx) {
+            const container = document.getElementById(`ex-${exIdx}-sets`);
+            const count = container.children.length;
             const div = document.createElement('div');
             div.className = 'flex gap-2';
             div.innerHTML = `
-                <input type="number" placeholder="Weight" data-exercise="${exerciseIndex}" data-set="${currentSetCount}" data-field="weight" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                <input type="number" placeholder="Reps" data-exercise="${exerciseIndex}" data-set="${currentSetCount}" data-field="reps" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                <input type="number" placeholder="Sets" data-exercise="${exerciseIndex}" data-set="${currentSetCount}" data-field="sets" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                <button onclick="removeSet(${exerciseIndex}, ${currentSetCount})" class="text-slate-400 hover:text-red-600 transition-colors">
+                <input type="number" placeholder="Wt" data-ex="${exIdx}" data-set="${count}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
+                <input type="number" placeholder="Reps" data-ex="${exIdx}" data-set="${count}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
+                <input type="number" placeholder="Sets" data-ex="${exIdx}" data-set="${count}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
+                <button onclick="removeSetUI(${exIdx}, ${count})" class="text-slate-400 hover:text-red-600">
                     <i class="ph-bold ph-x text-lg"></i>
                 </button>
             `;
             container.appendChild(div);
         }
 
-        function removeSet(exerciseIndex, setIndex) {
-            const sets = document.querySelectorAll(`[data-exercise="${exerciseIndex}"]`);
-            if (sets.length > 0) {
-                sets[setIndex * 4]?.parentElement?.remove();
+        function removeSetUI(exIdx, setIdx) {
+            const container = document.getElementById(`ex-${exIdx}-sets`);
+            if (container.children[setIdx]) {
+                container.children[setIdx].remove();
             }
         }
 
-        function swapExercise(exerciseIndex, workoutType, currentExercise) {
-            const exercises = DEFAULT_EXERCISES[workoutType];
-            const alternatives = exercises.find(e => (typeof e === 'string' ? e : e.name) === currentExercise)?.alternatives || [];
-            
-            const allExercises = exercises.map(e => typeof e === 'string' ? e : e.name).filter(e => e !== currentExercise);
-            
-            let optionsHTML = allExercises.map(ex => `<option value="${ex}">${ex}</option>`).join('');
+        function showSwapModal(exIdx, type) {
+            const allEx = DEFAULT_EXERCISES[type];
+            const current = document.querySelector(`#ex-${exIdx}-sets`).previousElementSibling.querySelector('h3').textContent;
+            const options = allEx.filter(e => e !== current).map(e => `<option value="${e}">${e}</option>`).join('');
             
             document.getElementById('modal-content').innerHTML = `
                 <h2 class="text-xl font-bold text-slate-900 mb-4">Swap Exercise</h2>
-                <div class="mb-4">
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Alternative Exercises</label>
-                    <select id="swap-select" class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-3 appearance-none font-semibold outline-none">
-                        <option value="">Choose an exercise...</option>
-                        ${optionsHTML}
-                    </select>
-                </div>
-                <button onclick="confirmSwap(${exerciseIndex})" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">
-                    Confirm Swap
+                <select id="swap-select" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 mb-4">
+                    <option value="">Choose...</option>
+                    ${options}
+                </select>
+                <button onclick="confirmSwap(${exIdx})" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">
+                    Confirm
                 </button>
             `;
-            
             document.getElementById('modal-overlay').classList.remove('hidden');
         }
 
-        function confirmSwap(exerciseIndex) {
-            const select = document.getElementById('swap-select');
-            if (select.value) {
-                const container = document.querySelector(`[data-exercise="${exerciseIndex}"]`)?.closest('.bg-white');
-                if (container) {
-                    const titleEl = container.querySelector('h3');
-                    titleEl.textContent = select.value;
-                }
+        function confirmSwap(exIdx) {
+            const val = document.getElementById('swap-select').value;
+            if (val) {
+                const header = document.querySelector(`#ex-${exIdx}-sets`).previousElementSibling.querySelector('h3');
+                header.textContent = val;
                 document.getElementById('modal-overlay').classList.add('hidden');
             }
         }
 
-        function finishWorkout(workoutId, workoutType, workoutDate) {
-            const exerciseDivs = document.querySelectorAll('[data-exercise]');
+        function finishWorkout() {
             const exercises = [];
-            const exerciseMap = new Map();
-            
-            exerciseDivs.forEach(input => {
-                const exIndex = input.dataset.exercise;
-                const setIndex = input.dataset.set;
-                const field = input.dataset.field;
+            document.querySelectorAll('[data-ex]').forEach(inp => {
+                const exIdx = inp.dataset.ex;
+                const exName = document.querySelector(`#ex-${exIdx}-sets`).previousElementSibling.querySelector('h3').textContent;
                 
-                if (!exerciseMap.has(exIndex)) {
-                    const titleEl = input.closest('.bg-white').querySelector('h3');
-                    exerciseMap.set(exIndex, {
-                        name: titleEl.textContent,
-                        sets: []
-                    });
+                if (!exercises.find(e => e.name === exName)) {
+                    exercises.push({ name: exName, sets: [] });
                 }
                 
-                const ex = exerciseMap.get(exIndex);
-                if (!ex.sets[setIndex]) ex.sets[setIndex] = {};
-                ex.sets[setIndex][field] = input.value ? parseInt(input.value) : null;
+                const ex = exercises.find(e => e.name === exName);
+                const setIdx = parseInt(inp.dataset.set);
+                if (!ex.sets[setIdx]) ex.sets[setIdx] = { w: null, r: null, s: null };
+                
+                if (inp.className.includes('p-2')) {
+                    const inputs = inp.parentElement.querySelectorAll('input[type="number"]');
+                    ex.sets[setIdx].w = inputs[0].value ? parseInt(inputs[0].value) : null;
+                    ex.sets[setIdx].r = inputs[1].value ? parseInt(inputs[1].value) : null;
+                    ex.sets[setIdx].s = inputs[2].value ? parseInt(inputs[2].value) : null;
+                }
             });
-            
-            exerciseMap.forEach(ex => exercises.push(ex));
-            
-            // Save workout
-            const workout = {
-                id: workoutId,
-                date: workoutDate,
-                type: workoutType,
-                exercises: exercises,
-                rating: null
-            };
-            
+
+            const workout = { ...currentWorkout, exercises };
             historyData.unshift(workout);
-            lastWorkoutTemplate[workoutType] = workout;
+            lastWorkoutTemplate[currentWorkout.type] = workout;
             saveData();
-            
             switchTab('dashboard');
             renderHistory();
-            showMessage("Success", `${workoutType} workout logged!`);
+            showMessage("Success", `${currentWorkout.type} workout logged!`);
         }
 
-        // History functionality
         function renderHistory() {
             const container = document.getElementById('history-list');
             if (historyData.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 text-sm">No sessions yet. Start by logging a workout!</p>';
+                container.innerHTML = '<p class="text-slate-500 text-sm">No sessions yet</p>';
                 return;
             }
             
-            container.innerHTML = historyData.slice(0, 10).map(session => `
-                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+            container.innerHTML = historyData.slice(0, 10).map((s, i) => `
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="font-bold text-slate-900">${session.type}</h3>
-                        <span class="text-xs text-slate-500">${new Date(session.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</span>
+                        <h3 class="font-bold text-slate-900">${s.type}</h3>
+                        <span class="text-xs text-slate-500">${new Date(s.date).toLocaleDateString('en-GB')}</span>
                     </div>
-                    <p class="text-sm text-slate-600 mb-3">${session.exercises.length} exercises</p>
+                    <p class="text-sm text-slate-600 mb-3">${s.exercises.length} exercises</p>
                     <div class="flex gap-2">
-                        <button onclick="viewSessionDetails('${session.id}')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-1">
+                        <button onclick="viewSessionDetails(${i})" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-2 px-3 rounded-lg text-sm">
                             <i class="ph-bold ph-eye"></i> View
                         </button>
-                        <button onclick="deleteSession('${session.id}')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-1">
+                        <button onclick="deleteSession(${i})" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 px-3 rounded-lg text-sm">
                             <i class="ph-bold ph-trash"></i> Delete
                         </button>
                     </div>
@@ -394,38 +321,29 @@
             `).join('');
         }
 
-        function viewSessionDetails(sessionId) {
-            const session = historyData.find(s => s.id === sessionId);
-            if (!session) return;
-            
-            const exercisesHTML = session.exercises.map(ex => `
-                <div class="border-b border-slate-200 pb-4 mb-4 last:border-b-0 last:mb-0">
-                    <h4 class="font-bold text-slate-900 mb-2">${ex.name}</h4>
+        function viewSessionDetails(idx) {
+            const s = historyData[idx];
+            const exHTML = s.exercises.map(e => `
+                <div class="border-b border-slate-200 pb-4 mb-4 last:border-b-0">
+                    <h4 class="font-bold text-slate-900 mb-2">${e.name}</h4>
                     <div class="space-y-1 text-sm text-slate-600">
-                        ${ex.sets.map((set, idx) => `
-                            <div>Set ${idx + 1}: ${set.weight || '-'} kg × ${set.reps || '-'} reps (${set.sets || '-'} sets)</div>
-                        `).join('')}
+                        ${e.sets.map((st, j) => `<div>Set ${j + 1}: ${st.w || '-'} kg × ${st.r || '-'} reps × ${st.s || '-'} sets</div>`).join('')}
                     </div>
                 </div>
             `).join('');
             
             document.getElementById('modal-content').innerHTML = `
-                <h2 class="text-xl font-bold text-slate-900 mb-2">${session.type} Session</h2>
-                <p class="text-sm text-slate-500 mb-4">${new Date(session.date).toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                <div class="max-h-96 overflow-y-auto mb-4">
-                    ${exercisesHTML}
-                </div>
-                <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold py-2 rounded-lg transition-colors">
-                    Close
-                </button>
+                <h2 class="text-xl font-bold text-slate-900 mb-2">${s.type}</h2>
+                <p class="text-sm text-slate-500 mb-4">${new Date(s.date).toLocaleDateString('en-GB')}</p>
+                <div class="max-h-96 overflow-y-auto mb-4">${exHTML}</div>
+                <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold py-2 rounded-lg">Close</button>
             `;
-            
             document.getElementById('modal-overlay').classList.remove('hidden');
         }
 
-        function deleteSession(sessionId) {
-            if (confirm('Are you sure you want to delete this session?')) {
-                historyData = historyData.filter(s => s.id !== sessionId);
+        function deleteSession(idx) {
+            if (confirm('Delete this session?')) {
+                historyData.splice(idx, 1);
                 saveData();
                 renderHistory();
             }
@@ -434,10 +352,6 @@
         function switchTab(tab) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
             document.getElementById(`view-${tab}`).classList.remove('hidden');
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.add('text-slate-400'));
-            
-            const navMap = { dashboard: 'nav-workouts', bag: 'nav-bag', pbs: 'nav-pbs', 'active-workout': 'nav-workouts' };
-            if (navMap[tab]) document.getElementById(navMap[tab]).classList.remove('text-slate-400'), document.getElementById(navMap[tab]).classList.add('text-blue-600');
             
             if (tab === 'pbs') renderPBs();
             if (tab === 'bag') renderBagWorkout();
@@ -445,19 +359,13 @@
         }
 
         function renderBagWorkout() {
-            const container = document.getElementById('bag-content-container');
-            
-            container.innerHTML = `
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 mb-6">
-                    <div>
-                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Number of Rounds</label>
-                        <input type="number" id="bag-rounds" placeholder="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-lg font-bold outline-none focus:border-purple-500 focus:bg-white transition-all" value="5">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Round Length (minutes)</label>
-                        <input type="number" id="bag-length" placeholder="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-lg font-bold outline-none focus:border-purple-500 focus:bg-white transition-all" value="3">
-                    </div>
-                    <button onclick="addBagSession()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl shadow-sm transition-colors">
+            document.getElementById('bag-content-container').innerHTML = `
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                    <label class="text-xs font-bold text-slate-600 uppercase block mb-2">Rounds</label>
+                    <input type="number" id="bag-rounds" placeholder="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-lg font-bold outline-none focus:border-purple-500">
+                    <label class="text-xs font-bold text-slate-600 uppercase block mb-2">Round Length (min)</label>
+                    <input type="number" id="bag-length" placeholder="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-lg font-bold outline-none focus:border-purple-500">
+                    <button onclick="addBagSession()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl">
                         <i class="ph-bold ph-plus mr-2"></i>Log Session
                     </button>
                 </div>
@@ -465,99 +373,76 @@
         }
 
         function addBagSession() {
-            const rounds = parseInt(document.getElementById('bag-rounds').value);
-            const roundLength = parseInt(document.getElementById('bag-length').value);
-            
-            if (!rounds || rounds < 1 || !roundLength || roundLength < 1) {
-                showMessage("Invalid Input", "Please enter valid numbers for rounds and round length.");
-                return;
+            const r = parseInt(document.getElementById('bag-rounds').value);
+            const l = parseInt(document.getElementById('bag-length').value);
+            if (r && l) {
+                const bagData = JSON.parse(localStorage.getItem('bagData') || '[]');
+                bagData.unshift({ id: Date.now(), date: new Date().toISOString(), rounds: r, length: l });
+                localStorage.setItem('bagData', JSON.stringify(bagData));
+                renderBagWorkout();
+                showMessage("Success", `Logged ${r} rounds of ${l} minutes!`);
             }
-
-            const session = {
-                id: Date.now().toString(),
-                date: new Date().toISOString(),
-                rounds: rounds,
-                roundLength: roundLength
-            };
-
-            bagWorkoutData.unshift(session);
-            saveData();
-            renderBagWorkout();
-            showMessage("Success", `Logged ${rounds} rounds of ${roundLength} minutes!`);
         }
 
         function renderPBs() {
-            const uniqueEx = new Set();
-            historyData.forEach(session => session.exercises.forEach(ex => uniqueEx.add(ex.name)));
-            const exercisesList = Array.from(uniqueEx).sort();
+            const exSet = new Set();
+            historyData.forEach(s => s.exercises.forEach(e => exSet.add(e.name)));
+            const exList = Array.from(exSet).sort();
             const container = document.getElementById('pb-content-container');
 
-            if (exercisesList.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-500 py-12 bg-white rounded-xl border border-dashed border-slate-300">
-                    <i class="ph-fill ph-trophy text-5xl mx-auto text-slate-300 mb-3"></i>
-                    <p>No data recorded yet.</p><p class="text-sm mt-1">Log workouts to see your charts here.</p></div>`;
+            if (exList.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-500 py-12 bg-white rounded-xl border border-dashed"><i class="ph-fill ph-trophy text-5xl mx-auto text-slate-300 mb-3"></i><p>No data yet</p></div>`;
                 return;
             }
 
             container.innerHTML = `
                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
                     <label class="block text-sm font-bold text-slate-700 mb-2">Select Exercise</label>
-                    <div class="relative">
-                        <select id="pb-select" onchange="updatePBChart()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-3 appearance-none font-semibold outline-none">
-                            ${exercisesList.map(ex => `<option value="${ex}">${ex}</option>`).join('')}
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500"><i class="ph-bold ph-caret-down"></i></div>
-                    </div>
+                    <select id="pb-select" onchange="updatePBChart()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-semibold outline-none">
+                        ${exList.map(e => `<option value="${e}">${e}</option>`).join('')}
+                    </select>
                 </div>
                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="mb-4">
-                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider">All-Time Max Record</h3>
-                        <p id="pb-max-display" class="text-4xl font-black text-slate-900 mt-1">-- kg</p>
-                    </div>
-                    <div class="h-80 w-full relative"><canvas id="pbChartCanvas"></canvas></div>
+                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-1">All-Time Max</h3>
+                    <p id="pb-max" class="text-4xl font-black text-slate-900 mb-4">-- kg</p>
+                    <div class="h-80 w-full"><canvas id="pbChart"></canvas></div>
                 </div>
             `;
             updatePBChart();
         }
 
         function updatePBChart() {
-            const select = document.getElementById('pb-select');
-            if (!select) return;
-            const exName = select.value;
+            const sel = document.getElementById('pb-select');
+            if (!sel) return;
+            const exName = sel.value;
             
-            const dataMap = new Map();
-            historyData.forEach(session => {
-                const ex = session.exercises.find(e => e.name === exName);
+            const data = new Map();
+            historyData.forEach(s => {
+                const ex = s.exercises.find(e => e.name === exName);
                 if (ex) {
-                    const maxWeight = Math.max(...ex.sets.map(s => Number(s.weight) || 0), 0);
-                    const totalVolume = ex.sets.reduce((sum, s) => sum + ((Number(s.weight) || 0) * (Number(s.reps) || 0) * (Number(s.sets) || 1)), 0);
-                    const totalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                    const w = Math.max(...ex.sets.map(st => st.w || 0), 0);
+                    const v = ex.sets.reduce((sum, st) => sum + ((st.w || 0) * (st.r || 0) * (st.s || 1)), 0);
+                    const reps = ex.sets.reduce((sum, st) => sum + (st.r || 0), 0);
                     
-                    if (maxWeight > 0 || totalVolume > 0) {
-                        const dateKey = new Date(session.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-                        if (!dataMap.has(dateKey)) {
-                            dataMap.set(dateKey, { 
-                                date: dateKey, 
-                                timestamp: new Date(session.date).getTime(), 
-                                weight: maxWeight,
-                                volume: totalVolume,
-                                reps: totalReps
-                            });
+                    if (w > 0 || v > 0) {
+                        const key = new Date(s.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+                        if (!data.has(key)) {
+                            data.set(key, { date: key, ts: new Date(s.date).getTime(), w, v, reps });
                         } else {
-                            const existing = dataMap.get(dateKey);
-                            existing.weight = Math.max(existing.weight, maxWeight);
-                            existing.volume += totalVolume;
-                            existing.reps += totalReps;
+                            const d = data.get(key);
+                            d.w = Math.max(d.w, w);
+                            d.v += v;
+                            d.reps += reps;
                         }
                     }
                 }
             });
             
-            const chartData = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp);
-            const allTimeMax = chartData.length > 0 ? Math.max(...chartData.map(d => d.weight)) : 0;
-            document.getElementById('pb-max-display').innerText = `${allTimeMax} kg`;
+            const chartData = Array.from(data.values()).sort((a, b) => a.ts - b.ts);
+            const maxW = chartData.length > 0 ? Math.max(...chartData.map(d => d.w)) : 0;
+            document.getElementById('pb-max').textContent = `${maxW} kg`;
 
-            const ctx = document.getElementById('pbChartCanvas').getContext('2d');
+            const ctx = document.getElementById('pbChart').getContext('2d');
             if (pbChartInstance) pbChartInstance.destroy();
             
             pbChartInstance = new Chart(ctx, {
@@ -567,45 +452,36 @@
                     datasets: [
                         {
                             label: 'Total Volume (kg)',
-                            data: chartData.map(d => d.volume),
+                            data: chartData.map(d => d.v),
                             borderColor: '#06b6d4',
-                            backgroundColor: 'rgba(6, 182, 212, 0.05)',
                             borderWidth: 3,
-                            pointBackgroundColor: '#ffffff',
-                            pointBorderColor: '#06b6d4',
-                            pointBorderWidth: 2,
                             pointRadius: 4,
-                            fill: false,
-                            tension: 0.4,
-                            yAxisID: 'y'
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#06b6d4',
+                            yAxisID: 'y',
+                            tension: 0.4
                         },
                         {
                             label: 'Peak Weight (kg)',
-                            data: chartData.map(d => d.weight),
+                            data: chartData.map(d => d.w),
                             borderColor: '#ef4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
                             borderWidth: 3,
-                            pointBackgroundColor: '#ffffff',
-                            pointBorderColor: '#ef4444',
-                            pointBorderWidth: 2,
                             pointRadius: 4,
-                            fill: false,
-                            tension: 0.4,
-                            yAxisID: 'y1'
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#ef4444',
+                            yAxisID: 'y1',
+                            tension: 0.4
                         },
                         {
                             label: 'Total Reps',
                             data: chartData.map(d => d.reps),
                             borderColor: '#8b5cf6',
-                            backgroundColor: 'rgba(139, 92, 246, 0.05)',
                             borderWidth: 3,
-                            pointBackgroundColor: '#ffffff',
-                            pointBorderColor: '#8b5cf6',
-                            pointBorderWidth: 2,
                             pointRadius: 4,
-                            fill: false,
-                            tension: 0.4,
-                            yAxisID: 'y1'
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#8b5cf6',
+                            yAxisID: 'y1',
+                            tension: 0.4
                         }
                     ]
                 },
@@ -613,106 +489,60 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    plugins: { 
-                        legend: { 
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 15,
-                                font: { size: 12, weight: 'bold' }
-                            }
-                        }, 
-                        tooltip: { 
-                            displayColors: true,
-                            backgroundColor: '#1e293b', 
-                            padding: 12, 
-                            cornerRadius: 8,
-                            titleFont: { size: 13 },
-                            bodyFont: { size: 12, weight: 'bold' },
-                            callbacks: {
-                                afterLabel: function(context) {
-                                    const axisID = context.dataset.yAxisID;
-                                    return axisID === 'y1' ? '(Right Axis)' : '(Left Axis)';
-                                }
-                            }
-                        } 
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 15, font: { size: 12, weight: 'bold' } } },
+                        tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { size: 13 }, bodyFont: { size: 12, weight: 'bold' } }
                     },
                     scales: {
-                        x: { 
-                            grid: { display: false }, 
-                            ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } } 
-                        },
-                        y: { 
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: { display: true, text: 'Total Volume (kg)', color: '#06b6d4', font: { weight: 'bold' } },
-                            border: { display: false },
-                            grid: { color: '#f1f5f9' }, 
-                            ticks: { color: '#06b6d4', font: { family: 'Inter', size: 11 } }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: { display: true, text: 'Peak Weight & Total Reps (kg / reps)', color: '#64748b', font: { weight: 'bold' } },
-                            border: { display: false },
-                            grid: { display: false },
-                            ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
-                        }
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        y: { position: 'left', title: { display: true, text: 'Total Volume (kg)', color: '#06b6d4', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#06b6d4', font: { size: 11 } } },
+                        y1: { position: 'right', title: { display: true, text: 'Peak Weight & Reps (kg / reps)', color: '#64748b', font: { weight: 'bold' } }, grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } }
                     }
                 }
             });
         }
 
-        function showMessage(title, message) {
+        function showMessage(title, msg) {
             document.getElementById('modal-content').innerHTML = `
                 <h2 class="text-xl font-bold text-slate-900 mb-2">${title}</h2>
-                <p class="text-slate-700 mb-6">${message}</p>
-                <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors">
-                    OK
-                </button>
+                <p class="text-slate-700 mb-6">${msg}</p>
+                <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg">OK</button>
             `;
             document.getElementById('modal-overlay').classList.remove('hidden');
         }
 
         function exportWorkoutData() {
-            const data = { historyData, bagWorkoutData, lastWorkoutTemplate };
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `workout_backup_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
+            const data = { historyData, lastWorkoutTemplate, bagData: localStorage.getItem('bagData') };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `workout_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
         }
 
-        function importWorkoutData(event) {
-            const file = event.target.files[0];
+        function importWorkoutData(e) {
+            const file = e.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = (evt) => {
                 try {
-                    const imported = JSON.parse(e.target.result);
+                    const imported = JSON.parse(evt.target.result);
                     if (imported.historyData) historyData = imported.historyData;
-                    if (imported.bagWorkoutData) bagWorkoutData = imported.bagWorkoutData;
                     if (imported.lastWorkoutTemplate) lastWorkoutTemplate = imported.lastWorkoutTemplate;
+                    if (imported.bagData) localStorage.setItem('bagData', imported.bagData);
                     saveData();
                     renderHistory();
-                    showMessage("Success", "Data imported successfully!");
-                } catch (error) {
-                    showMessage("Error", "Failed to import data. Please check the file format.");
+                    showMessage("Success", "Data imported!");
+                } catch (err) {
+                    showMessage("Error", "Failed to import");
                 }
             };
             reader.readAsText(file);
         }
 
-        // Init App on load
         window.onload = () => {
             loadData();
-            renderHistory();
             switchTab('dashboard');
         };
     </script>
