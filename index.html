@@ -512,12 +512,19 @@
         }
 
         function exportWorkoutData() {
-            const data = { historyData, lastWorkoutTemplate, bagData: localStorage.getItem('bagData') };
+            const bagData = localStorage.getItem('bagData');
+            const data = { 
+                historyData, 
+                lastWorkoutTemplate, 
+                bagData: bagData ? JSON.parse(bagData) : [],
+                exportDate: new Date().toISOString(),
+                version: '2.0'
+            };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `workout_${new Date().toISOString().split('T')[0]}.json`;
+            a.download = `workout-backup-${new Date().toISOString().split('T')[0]}.json`;
             a.click();
         }
 
@@ -528,14 +535,48 @@
             reader.onload = (evt) => {
                 try {
                     const imported = JSON.parse(evt.target.result);
-                    if (imported.historyData) historyData = imported.historyData;
+                    
+                    // Handle old backup format
+                    if (imported.workout_history) {
+                        const oldHistory = JSON.parse(imported.workout_history);
+                        historyData = oldHistory.map(session => ({
+                            id: session.id,
+                            date: session.date,
+                            type: session.split,
+                            exercises: session.exercises.map(ex => ({
+                                name: ex.name,
+                                sets: ex.sets.map(s => ({ w: s.weight, r: s.reps, s: 1 }))
+                            })),
+                            rating: session.rating || null
+                        }));
+                        
+                        // Update last workout template
+                        oldHistory.slice(0, 3).forEach(session => {
+                            if (session.split) {
+                                lastWorkoutTemplate[session.split] = {
+                                    id: session.id,
+                                    date: session.date,
+                                    type: session.split,
+                                    exercises: session.exercises.map(ex => ({
+                                        name: ex.name,
+                                        sets: ex.sets.map(s => ({ w: s.weight, r: s.reps, s: 1 }))
+                                    }))
+                                };
+                            }
+                        });
+                    } else if (imported.historyData) {
+                        historyData = imported.historyData;
+                    }
+                    
                     if (imported.lastWorkoutTemplate) lastWorkoutTemplate = imported.lastWorkoutTemplate;
                     if (imported.bagData) localStorage.setItem('bagData', imported.bagData);
+                    if (imported.bag_workout_history) localStorage.setItem('bagData', imported.bag_workout_history);
+                    
                     saveData();
                     renderHistory();
-                    showMessage("Success", "Data imported!");
+                    showMessage("Success", "Data imported! ✓");
                 } catch (err) {
-                    showMessage("Error", "Failed to import");
+                    showMessage("Error", "Failed to import: " + err.message);
                 }
             };
             reader.readAsText(file);
