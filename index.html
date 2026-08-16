@@ -164,7 +164,7 @@
                             <i class="ph-bold ph-check mr-2"></i> Finish
                         </button>
                     </div>
-                    <div class="flex-1 overflow-y-auto">
+                    <div class="flex-1 overflow-y-auto pb-20">
             `;
 
             exercises.forEach((exName, idx) => {
@@ -185,7 +185,14 @@
                 `;
             });
 
-            html += `</div></div>`;
+            html += `
+                    <div class="bg-white border-b border-slate-200 px-6 py-4">
+                        <button onclick="addNewExerciseUI('${type}')" class="w-full text-center text-slate-500 hover:text-slate-700 font-bold py-2 flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg transition-colors">
+                            <i class="ph-bold ph-plus text-lg"></i> Add Exercise
+                        </button>
+                    </div>
+                </div></div>
+            `;
             container.innerHTML = html;
             
             // Populate sets
@@ -234,6 +241,53 @@
             const container = document.getElementById(`ex-${exIdx}-sets`);
             if (container.children[setIdx]) {
                 container.children[setIdx].remove();
+            }
+        }
+
+        function addNewExerciseUI(type) {
+            const defaults = DEFAULT_EXERCISES[type];
+            const options = defaults.map(e => `<option value="${e}">${e}</option>`).join('');
+            
+            document.getElementById('modal-content').innerHTML = `
+                <h2 class="text-xl font-bold text-slate-900 mb-4">Add New Exercise</h2>
+                <label class="block text-sm font-bold text-slate-700 mb-2">Choose Exercise</label>
+                <select id="new-ex-select" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 mb-4 font-semibold outline-none">
+                    ${options}
+                </select>
+                <button onclick="confirmAddNewExercise('${type}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">
+                    Add Exercise
+                </button>
+            `;
+            document.getElementById('modal-overlay').classList.remove('hidden');
+        }
+
+        function confirmAddNewExercise(type) {
+            const val = document.getElementById('new-ex-select').value;
+            if (val) {
+                const scrollContainer = document.querySelector('#view-active-workout .flex-1');
+                if (scrollContainer) {
+                    const existingExercises = scrollContainer.querySelectorAll('h3');
+                    const count = existingExercises.length;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'bg-white border-b border-slate-200 px-6 py-4';
+                    div.innerHTML = `
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-900">${val}</h3>
+                            <button onclick="showSwapModal(${count}, '${type}')" class="text-slate-400 hover:text-slate-600">
+                                <i class="ph-bold ph-swap text-lg"></i>
+                            </button>
+                        </div>
+                        <div id="ex-${count}-sets" class="space-y-2"></div>
+                        <button onclick="addSetUI(${count})" class="mt-3 text-sm text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1">
+                            <i class="ph-bold ph-plus text-lg"></i> Add Set
+                        </button>
+                    `;
+                    
+                    const addButton = scrollContainer.querySelector('button:has(i.ph-plus)').parentElement;
+                    scrollContainer.insertBefore(div, addButton);
+                }
+                document.getElementById('modal-overlay').classList.add('hidden');
             }
         }
 
@@ -516,9 +570,9 @@
             const data = { 
                 historyData, 
                 lastWorkoutTemplate, 
-                bagData: bagData ? JSON.parse(bagData) : [],
+                bagSessions: bagData ? JSON.parse(bagData) : [],
                 exportDate: new Date().toISOString(),
-                version: '2.0'
+                version: '2.1'
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -536,8 +590,8 @@
                 try {
                     const imported = JSON.parse(evt.target.result);
                     
-                    // Handle old backup format
-                    if (imported.workout_history) {
+                    // Handle old backup format (string-based)
+                    if (imported.workout_history && typeof imported.workout_history === 'string') {
                         const oldHistory = JSON.parse(imported.workout_history);
                         historyData = oldHistory.map(session => ({
                             id: session.id,
@@ -568,9 +622,19 @@
                         historyData = imported.historyData;
                     }
                     
+                    // Handle template
                     if (imported.lastWorkoutTemplate) lastWorkoutTemplate = imported.lastWorkoutTemplate;
-                    if (imported.bagData) localStorage.setItem('bagData', imported.bagData);
-                    if (imported.bag_workout_history) localStorage.setItem('bagData', imported.bag_workout_history);
+                    
+                    // Handle bag sessions - multiple formats for backward compatibility
+                    if (imported.bagSessions && Array.isArray(imported.bagSessions)) {
+                        localStorage.setItem('bagData', JSON.stringify(imported.bagSessions));
+                    } else if (imported.bagData && Array.isArray(imported.bagData)) {
+                        localStorage.setItem('bagData', JSON.stringify(imported.bagData));
+                    } else if (imported.bagData && typeof imported.bagData === 'string') {
+                        localStorage.setItem('bagData', imported.bagData);
+                    } else if (imported.bag_workout_history && typeof imported.bag_workout_history === 'string') {
+                        localStorage.setItem('bagData', imported.bag_workout_history);
+                    }
                     
                     saveData();
                     renderHistory();
