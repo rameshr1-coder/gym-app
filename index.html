@@ -1,685 +1,869 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PPL & Bag Workout Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { 
-            overscroll-behavior-y: contain;
-            -webkit-tap-highlight-color: transparent; 
-        }
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PPL Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#08080A;height:100%;}
+  body{
+    -webkit-font-smoothing:antialiased;
+    font-family:'Archivo','Helvetica Neue',Helvetica,sans-serif;
+    overscroll-behavior-y:contain;
+    -webkit-tap-highlight-color:transparent;
+    display:flex;justify-content:center;
+  }
+  button,input{font-family:inherit}
+  button{-webkit-appearance:none;appearance:none}
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes toastin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes pulsebar{0%,100%{opacity:.55}50%{opacity:1}}
+  .scr{animation:rise .26s cubic-bezier(.2,.7,.3,1) both}
+  .noscroll::-webkit-scrollbar{display:none}
+  .noscroll{scrollbar-width:none}
+  .hidden{display:none!important}
+  [hidden]{display:none!important}
+  .row-btn{border:0;cursor:pointer;text-align:left;width:100%}
+  .mono{font-family:'JetBrains Mono',monospace}
+</style>
 </head>
-<body class="bg-slate-900 h-[100dvh] flex justify-center">
+<body>
 
-    <div class="w-full h-full max-w-md bg-slate-50 relative flex flex-col shadow-2xl overflow-hidden font-sans">
-        
-        <!-- ================= VIEW: DASHBOARD ================= -->
-        <div id="view-dashboard" class="view-section flex-1 overflow-y-auto p-6 pb-28 w-full hidden">
-            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-6">Train.</h1>
-            
-            <div class="grid grid-cols-3 gap-3">
-                <button onclick="startWorkout('Push')" class="bg-white border border-slate-200 shadow-sm p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-red-400 hover:shadow-md transition-all active:scale-95 group">
-                    <div class="bg-red-50 p-3 rounded-full text-red-600 group-hover:bg-red-100 transition-colors"><i class="ph-fill ph-hand-fist text-2xl"></i></div>
-                    <span class="font-bold text-slate-800 text-sm">Push</span>
-                </button>
-                <button onclick="startWorkout('Pull')" class="bg-white border border-slate-200 shadow-sm p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:shadow-md transition-all active:scale-95 group">
-                    <div class="bg-blue-50 p-3 rounded-full text-blue-600 group-hover:bg-blue-100 transition-colors"><i class="ph-fill ph-hand-grabbing text-2xl"></i></div>
-                    <span class="font-bold text-slate-800 text-sm">Pull</span>
-                </button>
-                <button onclick="startWorkout('Legs')" class="bg-white border border-slate-200 shadow-sm p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-green-400 hover:shadow-md transition-all active:scale-95 group">
-                    <div class="bg-green-50 p-3 rounded-full text-green-600 group-hover:bg-green-100 transition-colors"><i class="ph-fill ph-person text-2xl"></i></div>
-                    <span class="font-bold text-slate-800 text-sm">Legs</span>
-                </button>
-            </div>
-            
-            <!-- Backup & Restore Section -->
-            <div class="mt-8 p-5 bg-slate-800 rounded-2xl shadow-lg border border-slate-700">
-                <h3 class="text-white font-bold mb-3 flex items-center text-lg">
-                    <i class="ph-fill ph-database mr-2 text-blue-400"></i> Backup & Restore
-                </h3>
-                <div class="flex gap-3">
-                    <button onclick="exportWorkoutData()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 px-2 rounded-xl font-bold shadow-sm transition-colors flex justify-center items-center gap-2 text-sm">
-                        <i class="ph-bold ph-download-simple"></i> Export
-                    </button>
-                    <label class="flex-1 bg-slate-600 hover:bg-slate-500 text-white py-3 px-2 rounded-xl font-bold shadow-sm transition-colors text-center cursor-pointer flex justify-center items-center gap-2 text-sm">
-                        <i class="ph-bold ph-upload-simple"></i> Import
-                        <input type="file" accept=".json" onchange="importWorkoutData(event)" class="hidden" />
-                    </label>
-                </div>
-                <p class="text-slate-400 text-xs mt-3 leading-relaxed">Export your data to a file before clearing history or switching phones to keep your PBs safe.</p>
-            </div>
+<div id="app-shell" style="width:100%;max-width:430px;min-height:100dvh;background:#0B0B0C;color:#F2F0ED;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.06)">
 
-            <!-- History List -->
-            <h2 class="text-xl font-bold text-slate-800 pt-8 mb-4">Recent Sessions</h2>
-            <div id="history-list" class="space-y-3"></div>
-        </div>
+  <!-- ===== GLOBAL HEADER ===== -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px">
+    <div id="header-left" style="display:flex;align-items:center;gap:10px"></div>
+    <div id="header-right" class="mono" style="font-size:10px;letter-spacing:.14em;color:#5C5C61"></div>
+  </div>
 
-        <!-- ================= VIEW: ACTIVE WORKOUT ================= -->
-        <div id="view-active-workout" class="view-section hidden flex-1 flex flex-col w-full bg-slate-50 overflow-hidden">
-            <div id="active-workout-container" class="flex-1 overflow-y-auto h-full"></div>
-        </div>
+  <!-- ===== VIEW: TRAIN (dashboard) ===== -->
+  <div id="view-dashboard" class="view-section scr hidden" style="flex:1;padding:6px 20px 130px;overflow-y:auto"></div>
 
-        <!-- ================= VIEW: BAG WORKOUT ================= -->
-        <div id="view-bag" class="view-section hidden flex-1 overflow-y-auto p-4 pb-28 w-full bg-slate-50">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="bg-purple-100 p-2 rounded-xl">
-                    <i class="ph-bold ph-fist text-purple-600 text-2xl"></i>
-                </div>
-                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Bag Work</h1>
-            </div>
-            
-            <div id="bag-content-container"></div>
-        </div>
+  <!-- ===== VIEW: SESSION DETAIL ===== -->
+  <div id="view-detail" class="view-section scr hidden" style="flex:1;padding:6px 20px 130px;overflow-y:auto"></div>
 
-        <!-- ================= VIEW: PBs ================= -->
-        <div id="view-pbs" class="view-section hidden flex-1 overflow-y-auto p-4 pb-28 w-full bg-slate-50">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="bg-amber-100 p-2 rounded-xl">
-                    <i class="ph-bold ph-trophy text-amber-600 text-2xl"></i>
-                </div>
-                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Progress</h1>
-            </div>
-            
-            <div id="pb-content-container"></div>
-        </div>
+  <!-- ===== VIEW: PROGRESS ===== -->
+  <div id="view-pbs" class="view-section scr hidden" style="flex:1;padding:6px 0 130px;overflow-y:auto"></div>
 
-        <!-- ================= BOTTOM NAVIGATION ================= -->
-        <div id="bottom-nav" class="absolute bottom-0 w-full bg-white border-t border-slate-200 px-6 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40">
-            <button id="nav-workouts" onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center gap-1 transition-colors text-blue-600">
-                <i class="ph-fill ph-barbell text-2xl"></i>
-                <span class="text-[10px] font-bold">Log</span>
-            </button>
-            
-            <button id="nav-bag" onclick="switchTab('bag')" class="nav-btn flex flex-col items-center gap-1 transition-colors text-slate-400 hover:text-slate-600">
-                <i class="ph-bold ph-fist text-2xl"></i>
-                <span class="text-[10px] font-bold">Bag</span>
-            </button>
-            
-            <button id="nav-pbs" onclick="switchTab('pbs')" class="nav-btn flex flex-col items-center gap-1 transition-colors text-slate-400 hover:text-slate-600">
-                <i class="ph-bold ph-trophy text-2xl"></i>
-                <span class="text-[10px] font-bold">PBs</span>
-            </button>
+  <!-- ===== VIEW: ACTIVE SESSION ===== -->
+  <div id="view-active-workout" class="view-section scr hidden" style="flex:1;padding:0 0 130px;overflow-y:auto"></div>
+
+  <!-- ===== BOTTOM SHEET (swap / add exercise) ===== -->
+  <div id="sheet-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(4,4,6,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:flex-end;justify-content:center">
+    <div style="width:100%;max-width:430px;background:#121214;border-top:1px solid rgba(255,255,255,.1);border-radius:20px 20px 0 0;padding:18px 20px 26px;animation:toastin .24s ease both;max-height:78dvh;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div id="sheet-title" style="font-size:16px;font-weight:700"></div>
+        <button onclick="closeSheet()" style="background:transparent;border:0;color:#8A8A8F;font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <input id="sheet-query-input" oninput="onSheetQuery(this.value)" placeholder="Search or type a new exercise" style="width:100%;box-sizing:border-box;background:#0D0D0F;border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:13px 14px;color:#F2F0ED;font-size:14px;outline:none;margin-bottom:12px" />
+      <div id="sheet-dynamic" class="noscroll" style="overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div id="toast" class="mono hidden" style="position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:70;background:#1D1D20;border:1px solid rgba(200,161,90,.4);border-radius:11px;padding:12px 18px;font-size:11.5px;letter-spacing:.06em;color:#E4D6B4;animation:toastin .2s ease both;box-shadow:0 12px 30px rgba(0,0,0,.5)"></div>
+
+  <!-- ===== CONFIRM / MESSAGE MODAL ===== -->
+  <div id="modal-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(4,4,6,.72);backdrop-filter:blur(4px);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div id="modal-content" style="width:100%;max-width:360px;background:#121214;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.5)"></div>
+  </div>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <div style="position:sticky;bottom:0;margin-top:auto;display:grid;grid-template-columns:repeat(2,1fr);background:rgba(11,11,12,.92);backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,.08);padding:10px 8px calc(14px + env(safe-area-inset-bottom));z-index:50">
+    <button onclick="goTrain()" style="display:flex;flex-direction:column;align-items:center;gap:6px;background:transparent;border:0;cursor:pointer;padding:6px 0" id="nav-train">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="8.5" width="16" height="3" rx="1.2" fill="currentColor"></rect><rect x="3.5" y="5.5" width="3" height="9" rx="1.2" fill="currentColor"></rect><rect x="13.5" y="5.5" width="3" height="9" rx="1.2" fill="currentColor"></rect></svg>
+      <span class="mono" style="font-size:9px;letter-spacing:.14em">LOG</span>
+    </button>
+    <button onclick="goProgress()" style="display:flex;flex-direction:column;align-items:center;gap:6px;background:transparent;border:0;cursor:pointer;padding:6px 0" id="nav-progress">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="12" width="3.4" height="5.5" rx="1" fill="currentColor"></rect><rect x="8.3" y="8" width="3.4" height="9.5" rx="1" fill="currentColor"></rect><rect x="14.1" y="3.5" width="3.4" height="14" rx="1" fill="currentColor"></rect></svg>
+      <span class="mono" style="font-size:9px;letter-spacing:.14em">PROGRESS</span>
+    </button>
+  </div>
+</div>
+
+<script>
+/* ============================== CONSTANTS ============================== */
+const COLOR = {
+  gold:'#C8A15A', goldLight:'#E0BC77', goldHover:'#DCB468', goldFg:'#141005',
+  text:'#F2F0ED', red:'#C7645A', green:'#9AC48C', blue:'#7FA0C4', purple:'#9C8FBF',
+  m1:'#5C5C61', m2:'#6E6E74', m3:'#7A7A80', m4:'#8A8A8F', m5:'#B9B9BE', m6:'#D5D3CF'
+};
+const BAR = { Push: COLOR.gold, Pull: COLOR.blue, Legs: COLOR.green };
+const EXERCISE_GROUPS = {
+  Push: ['Barbell Bench Press','Dumbbell Bench Press','Machine Chest Press','Incline Dumbbell Press','Incline Barbell Press','Smith Machine Incline','Overhead Press','Dumbbell Shoulder Press','Machine Shoulder Press','Lateral Raises','Cable Lateral Raises','Machine Lateral Raises','Tricep Pushdowns','Overhead Tricep Extension','Skull Crushers','Close Grip Bench Press','Dips'],
+  Pull: ['Deadlifts','Sumo Deadlifts','Rack Pulls','Pull Ups','Lat Pulldowns','Assisted Pull Ups','Barbell Rows','Dumbbell Rows','T-Bar Rows','Straight Arm Pulldowns','Face Pulls','Rear Delt Flys','Reverse Pec Deck','Bicep Curls','Hammer Curls','Preacher Curls'],
+  Legs: ['Squats','Leg Press','Hack Squats','Front Squats','Romanian Deadlifts','Leg Curls','Good Mornings','Leg Extensions','Sissy Squats','Hamstring Curls','Glute Ham Raises','Calf Raises','Seated Calf Raises','Lunges']
+};
+const NEED_STREAK = 3;      // "needs attention" — same sets N sessions running
+const REST_SECONDS = 90;
+const UNIT = 'kg';
+
+/* ============================== STATE ============================== */
+let history = safeParse(localStorage.getItem('workout_history'), []);
+let customExercises = safeParse(localStorage.getItem('workout_custom_exercises'), []);
+
+const state = {
+  tab: 'dashboard',       // dashboard | active-workout | detail | pbs
+  session: safeParse(localStorage.getItem('active_session_draft'), null),
+  detailId: null,
+  pbEx: null,
+  sheet: null,            // { kind: 'swap'|'add', ei }
+  sheetQ: '',
+  toast: null,
+  copied: false,
+  rest: 0
+};
+let restInterval = null;
+let toastTimeout = null;
+let copyTimeout = null;
+
+function safeParse(raw, fallback) {
+  if (!raw) return fallback;
+  try { return JSON.parse(raw); } catch (e) { return fallback; }
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function saveData() {
+  localStorage.setItem('workout_history', JSON.stringify(history));
+  localStorage.setItem('workout_custom_exercises', JSON.stringify(customExercises));
+}
+function saveDraft() {
+  if (state.session) localStorage.setItem('active_session_draft', JSON.stringify(state.session));
+}
+function clearDraft() {
+  localStorage.removeItem('active_session_draft');
+}
+
+/* ============================== HELPERS ============================== */
+function fmt(n) { return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(Math.round(n)); }
+function dateShort(ts) { return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+function vol(s) { return s.exercises.reduce((t, e) => t + e.sets.reduce((x, st) => x + (Number(st.weight) || 0) * (Number(st.reps) || 0), 0), 0); }
+function setCount(s) { return s.exercises.reduce((t, e) => t + e.sets.length, 0); }
+function sig(e) { return e.sets.map(st => (Number(st.weight) || 0) + 'x' + (Number(st.reps) || 0)).join('|'); }
+function lastFor(name) {
+  const s = history.find(h => h.exercises.some(e => e.name === name));
+  return s ? s.exercises.find(e => e.name === name) : null;
+}
+function library() {
+  const out = [];
+  Object.keys(EXERCISE_GROUPS).forEach(g => EXERCISE_GROUPS[g].forEach(n => out.push({ name: n, group: g })));
+  customExercises.forEach(n => { if (!out.some(o => o.name === n)) out.push({ name: n, group: 'Custom' }); });
+  return out;
+}
+function stalled() {
+  const byName = {};
+  history.forEach(h => h.exercises.forEach(e => { (byName[e.name] = byName[e.name] || []).push({ e, date: h.date }); }));
+  const out = [];
+  Object.keys(byName).forEach(name => {
+    const occ = byName[name];
+    if (occ.length < NEED_STREAK) return;
+    const peak = Math.max(0, ...occ[0].e.sets.map(s => Number(s.weight) || 0));
+    if (peak <= 0) return;
+    const base = sig(occ[0].e);
+    let streak = 1;
+    while (streak < occ.length && sig(occ[streak].e) === base) streak++;
+    if (streak >= NEED_STREAK) out.push({ name, streak, e: occ[0].e, date: occ[0].date, peak });
+  });
+  return out.sort((a, b) => b.streak - a.streak || b.date - a.date).slice(0, 3);
+}
+function plainText(s) {
+  const lines = [s.split + ' — ' + new Date(s.date).toLocaleDateString('en-GB')];
+  s.exercises.forEach(e => {
+    lines.push(e.name + ': ' + e.sets.map(st => ((Number(st.weight) || 'BW') + (Number(st.weight) ? UNIT : '')) + ' x ' + st.reps).join(', '));
+  });
+  lines.push('Total volume: ' + fmt(vol(s)) + ' ' + UNIT);
+  return lines.join('\n');
+}
+function flash(msg) {
+  state.toast = msg;
+  renderToast();
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { state.toast = null; renderToast(); }, 2200);
+}
+
+/* ============================== REST TIMER ============================== */
+function startRest() {
+  clearInterval(restInterval);
+  state.rest = REST_SECONDS;
+  renderActiveWorkout();
+  restInterval = setInterval(() => {
+    state.rest = Math.max(0, state.rest - 1);
+    if (state.rest <= 0) clearInterval(restInterval);
+    renderActiveWorkout();
+  }, 1000);
+}
+function stopRest() {
+  clearInterval(restInterval);
+  state.rest = 0;
+  renderActiveWorkout();
+}
+
+/* ============================== SESSION LIFECYCLE ============================== */
+function startWorkout(split, fromSession) {
+  const src = fromSession ? fromSession.exercises
+    : (history.find(h => h.split === split) || { exercises: EXERCISE_GROUPS[split].slice(0, 5).map(name => ({ name, sets: [{ weight: 0, reps: 8 }] })) }).exercises;
+  state.session = {
+    split, date: Date.now(),
+    exercises: src.map(e => ({ name: e.name, prev: e.sets.map(s => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 })), sets: e.sets.map(s => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, done: false })) }))
+  };
+  state.detailId = null;
+  stopRest();
+  saveDraft();
+  goTo('active-workout');
+}
+function mutateSession(fn) {
+  const session = JSON.parse(JSON.stringify(state.session));
+  fn(session);
+  state.session = session;
+  saveDraft();
+  renderActiveWorkout();
+}
+function pickExercise(name) {
+  const sheet = state.sheet;
+  if (!sheet) return;
+  const prevEx = lastFor(name);
+  const prev = prevEx ? prevEx.sets.map(q => ({ weight: Number(q.weight) || 0, reps: Number(q.reps) || 0 })) : [];
+  const initSets = prev.length ? prev.map(p => ({ weight: p.weight, reps: p.reps, done: false })) : [{ weight: 0, reps: 8, done: false }];
+  if (sheet.kind === 'swap') {
+    mutateSession(x => { x.exercises[sheet.ei] = { name, prev, sets: initSets }; });
+  } else {
+    mutateSession(x => { x.exercises.push({ name, prev, sets: initSets }); });
+    flash('ADDED ' + name.toUpperCase());
+  }
+  closeSheet();
+}
+function finishWorkout() {
+  const sess = state.session;
+  const rec = {
+    id: 'n' + Date.now(), split: sess.split, date: Date.now(),
+    exercises: sess.exercises.map(e => ({ name: e.name, sets: e.sets.map(x => ({ weight: x.weight, reps: x.reps })) }))
+  };
+  stopRest();
+  history = [rec, ...history];
+  saveData();
+  state.session = null;
+  clearDraft();
+  flash(sess.split.toUpperCase() + ' LOGGED · ' + fmt(vol(rec)) + ' ' + UNIT.toUpperCase());
+  goTo('dashboard');
+}
+
+/* ============================== SHEET (add / swap exercise) ============================== */
+function openSheet(kind, ei) {
+  state.sheet = { kind, ei };
+  state.sheetQ = '';
+  render();
+}
+function closeSheet() {
+  state.sheet = null;
+  state.sheetQ = '';
+  render();
+}
+function onSheetQuery(val) {
+  state.sheetQ = val;
+  renderSheetDynamic();
+}
+function createExercise() {
+  const name = state.sheetQ.trim();
+  if (!name) return;
+  if (!customExercises.includes(name)) { customExercises.push(name); saveData(); }
+  pickExercise(name);
+}
+
+/* ============================== NAVIGATION ============================== */
+function goTo(tab) {
+  state.tab = tab;
+  render();
+}
+function goTrain() { state.detailId = null; goTo('dashboard'); }
+function goProgress() { state.detailId = null; goTo('pbs'); }
+function goBack() { state.detailId = null; goTo('dashboard'); }
+function openDetail(id) { state.detailId = id; state.copied = false; goTo('detail'); }
+function openAttention(name) { state.pbEx = name; goTo('pbs'); }
+
+/* ============================== BACKUP ============================== */
+function exportWorkoutData() {
+  try {
+    const blob = new Blob([JSON.stringify(localStorage)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'workout-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    flash('BACKUP EXPORTED');
+  } catch (e) {
+    showMessage('Error', 'Error exporting data: ' + esc(e.message));
+  }
+}
+function importWorkoutData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let importedData;
+    try { importedData = JSON.parse(e.target.result); } catch (err) { showMessage('Error', 'Invalid backup file format.'); return; }
+    showConfirm('Restore backup?', 'This will completely overwrite your current app data with the selected backup. This cannot be undone.', () => {
+      Object.keys(importedData).forEach(key => localStorage.setItem(key, importedData[key]));
+      showMessage('Restored', 'Workout data restored successfully. The app will now reload.');
+      setTimeout(() => location.reload(), 1200);
+    });
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+/* ============================== MODAL ============================== */
+function showMessage(title, message) {
+  document.getElementById('modal-content').innerHTML = `
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px">${esc(title)}</div>
+    <div style="font-size:13.5px;color:${COLOR.m3};line-height:1.5;margin-bottom:20px">${esc(message)}</div>
+    <button onclick="hideModal()" style="width:100%;background:${COLOR.gold};border:0;color:${COLOR.goldFg};border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">OK</button>
+  `;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function showConfirm(title, message, onConfirm) {
+  window.__modalConfirm = () => { hideModal(); onConfirm(); };
+  document.getElementById('modal-content').innerHTML = `
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px">${esc(title)}</div>
+    <div style="font-size:13.5px;color:${COLOR.m3};line-height:1.5;margin-bottom:20px">${esc(message)}</div>
+    <div style="display:flex;gap:10px">
+      <button onclick="hideModal()" style="flex:1;background:transparent;border:1px solid rgba(255,255,255,.14);color:${COLOR.m5};border-radius:10px;padding:12px;font-size:13.5px;font-weight:600;cursor:pointer">Cancel</button>
+      <button onclick="window.__modalConfirm()" style="flex:1;background:${COLOR.red};border:0;color:#1A0F0D;border-radius:10px;padding:12px;font-size:13.5px;font-weight:700;cursor:pointer">Confirm</button>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function hideModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+/* ============================== RENDER: MASTER ============================== */
+function render() {
+  renderHeader();
+  renderNav();
+  document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+  if (state.tab === 'dashboard') { document.getElementById('view-dashboard').classList.remove('hidden'); renderDashboard(); }
+  else if (state.tab === 'detail') { document.getElementById('view-detail').classList.remove('hidden'); renderDetail(); }
+  else if (state.tab === 'pbs') { document.getElementById('view-pbs').classList.remove('hidden'); renderProgress(); }
+  else if (state.tab === 'active-workout') { document.getElementById('view-active-workout').classList.remove('hidden'); renderActiveWorkout(); }
+  renderSheetOverlay();
+  renderToast();
+}
+
+function renderHeader() {
+  const canGoBack = state.tab === 'active-workout' || state.tab === 'detail';
+  const atRoot = state.tab === 'dashboard' || state.tab === 'pbs';
+  const left = document.getElementById('header-left');
+  if (canGoBack) {
+    left.innerHTML = `
+      <button onclick="goBack()" style="display:flex;align-items:center;gap:7px;background:transparent;border:0;color:${COLOR.gold};cursor:pointer;padding:0;font-size:10px;letter-spacing:.16em" class="mono">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.6 2.6 4.2 7l4.4 4.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        BACK
+      </button>`;
+  } else if (atRoot) {
+    left.innerHTML = `
+      <div style="display:flex;align-items:center;gap:9px">
+        <div style="width:10px;height:22px;background:linear-gradient(180deg,${COLOR.gold},#8A6C33);border-radius:2px"></div>
+        <div class="mono" style="font-size:10px;letter-spacing:.22em;color:${COLOR.m2}">PPL LOG</div>
+      </div>`;
+  } else {
+    left.innerHTML = '';
+  }
+  document.getElementById('header-right').textContent = state.tab === 'active-workout'
+    ? 'SESSION IN PROGRESS'
+    : new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+}
+
+function renderNav() {
+  const trainActive = state.tab === 'dashboard' || state.tab === 'active-workout' || state.tab === 'detail';
+  const progActive = state.tab === 'pbs';
+  document.getElementById('nav-train').style.color = trainActive ? COLOR.gold : COLOR.m1;
+  document.getElementById('nav-progress').style.color = progActive ? COLOR.gold : COLOR.m1;
+}
+
+function renderToast() {
+  const el = document.getElementById('toast');
+  if (state.toast) { el.textContent = state.toast; el.classList.remove('hidden'); }
+  else { el.classList.add('hidden'); }
+}
+
+/* ============================== RENDER: DASHBOARD (Train) ============================== */
+function renderDashboard() {
+  const el = document.getElementById('view-dashboard');
+  const sess = state.session;
+  const doneSets = sess ? sess.exercises.reduce((t, e) => t + e.sets.filter(x => x.done).length, 0) : 0;
+  const allSets = sess ? setCount(sess) : 0;
+
+  const resumeHtml = !sess ? '' : `
+    <button onclick="goTo('active-workout')" class="row-btn" style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;background:rgba(200,161,90,.09);border:1px solid rgba(200,161,90,.4);border-radius:14px;padding:14px 16px;color:${COLOR.text};margin-bottom:22px">
+      <div style="width:8px;height:8px;border-radius:99px;background:${COLOR.gold};animation:pulsebar 1.5s ease-in-out infinite"></div>
+      <div>
+        <div style="font-size:14.5px;font-weight:600">${esc(sess.split)} session open</div>
+        <div class="mono" style="font-size:10px;color:#A99570;margin-top:3px">${doneSets}/${allSets} sets done · started ${new Date(sess.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+      </div>
+      <div class="mono" style="font-size:10.5px;color:${COLOR.gold};letter-spacing:.12em">RESUME</div>
+    </button>`;
+
+  const attention = stalled();
+  const attentionHtml = attention.length ? attention.map(a => `
+    <button onclick="openAttention(${esc(JSON.stringify(a.name))})" class="row-btn" style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:14px 16px;background:#111011;border-top:1px solid rgba(255,255,255,.055);color:${COLOR.text}">
+      <div style="width:3px;height:32px;border-radius:2px;background:${COLOR.red}"></div>
+      <div>
+        <div style="font-size:14px;font-weight:600">${esc(a.name)}</div>
+        <div class="mono" style="font-size:10px;color:${COLOR.m3};margin-top:4px">${a.e.sets.map(st => st.reps).join('/')} reps @ ${a.e.sets.map(st => Number(st.weight) || 0).filter((w, i, arr) => arr.indexOf(w) === i).join('/')} ${UNIT} · last ${dateShort(a.date)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="mono" style="font-size:14px;font-weight:700;color:${COLOR.red}">${a.streak}×</div>
+        <div class="mono" style="font-size:9px;color:${COLOR.m1};letter-spacing:.1em">SAME</div>
+      </div>
+    </button>`).join('') : `<div style="padding:18px 16px;background:#111011;font-size:13px;color:${COLOR.m3};line-height:1.5">Nothing stalled — every exercise has changed within the last ${NEED_STREAK} sessions.</div>`;
+
+  const starters = ['Push', 'Pull', 'Legs'].map(type => {
+    const prev = history.find(h => h.split === type);
+    const sub = prev ? dateShort(prev.date) + ' · ' + prev.exercises.length + ' exercises · ' + fmt(vol(prev)) + ' ' + UNIT : 'no history';
+    return `
+    <button onclick="startWorkout(${esc(JSON.stringify(type))})" class="row-btn" style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;background:#121214;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px;color:${COLOR.text}">
+      <div style="width:3px;height:34px;border-radius:2px;background:${BAR[type]}"></div>
+      <div>
+        <div style="font-size:17px;font-weight:600;letter-spacing:-.01em">${type}</div>
+        <div class="mono" style="font-size:10.5px;color:${COLOR.m3};margin-top:4px">${sub}</div>
+      </div>
+      <div class="mono" style="font-size:11px;color:${COLOR.gold};letter-spacing:.1em">GO</div>
+    </button>`;
+  }).join('');
+
+  const recents = history.slice(0, 6).map(h => `
+    <button onclick="openDetail(${esc(JSON.stringify(h.id))})" class="row-btn" style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;padding:14px 16px;background:#101012;border-top:1px solid rgba(255,255,255,.055);color:${COLOR.text}">
+      <div>
+        <div style="font-size:14px;font-weight:600">${esc(h.split)}</div>
+        <div class="mono" style="font-size:10px;color:${COLOR.m2};margin-top:3px">${dateShort(h.date)} · ${h.exercises.length} exercises · ${setCount(h)} sets</div>
+      </div>
+      <div style="text-align:right">
+        <div class="mono" style="font-size:14px;font-weight:500">${fmt(vol(h))}</div>
+        <div class="mono" style="font-size:9px;color:${COLOR.m1};letter-spacing:.12em">${UNIT.toUpperCase()}</div>
+      </div>
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style="color:${COLOR.m1}"><path d="M5 2.6 9.4 7 5 11.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </button>`).join('') || `<div style="padding:18px 16px;background:#101012;font-size:13px;color:${COLOR.m3}">No workouts logged yet. Select a split above to start.</div>`;
+
+  el.innerHTML = `
+    <div style="font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1;margin:10px 0 22px">Train.</div>
+    ${resumeHtml}
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+      <div class="mono" style="font-size:10px;letter-spacing:.18em;color:${COLOR.m2}">NEEDS ATTENTION</div>
+      <div class="mono" style="font-size:9.5px;color:#4F4F54;letter-spacing:.08em">SAME SETS ${NEED_STREAK}× RUNNING</div>
+    </div>
+    <div style="border:1px solid rgba(199,100,90,.28);border-radius:14px;overflow:hidden;margin-bottom:30px">${attentionHtml}</div>
+
+    <div class="mono" style="font-size:10px;letter-spacing:.18em;color:${COLOR.m2};margin-bottom:12px">START SESSION</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:30px">${starters}</div>
+
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+      <div class="mono" style="font-size:10px;letter-spacing:.18em;color:${COLOR.m2}">RECENT</div>
+      <div class="mono" style="font-size:10px;color:#4F4F54">${history.length} logged</div>
+    </div>
+    <div style="border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden">${recents}</div>
+
+    <div style="margin-top:26px;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;background:#101012">
+      <div class="mono" style="font-size:10px;letter-spacing:.18em;color:${COLOR.m2};margin-bottom:10px">BACKUP</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="exportWorkoutData()" style="flex:1;background:transparent;border:1px solid rgba(200,161,90,.5);color:${COLOR.gold};border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer">Export</button>
+        <label style="flex:1;background:transparent;border:1px solid rgba(255,255,255,.14);color:${COLOR.m5};border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;text-align:center">
+          Import
+          <input type="file" accept=".json" onchange="importWorkoutData(event)" class="hidden">
+        </label>
+      </div>
+      <div style="font-size:11.5px;color:${COLOR.m2};margin-top:10px;line-height:1.5">Export before clearing history or switching phones.</div>
+    </div>
+  `;
+}
+
+/* ============================== RENDER: SESSION DETAIL ============================== */
+function renderDetail() {
+  const el = document.getElementById('view-detail');
+  const detail = history.find(h => h.id === state.detailId);
+  if (!detail) { el.innerHTML = ''; return; }
+
+  const exercisesHtml = detail.exercises.map(e => {
+    const exVol = fmt(e.sets.reduce((t, st) => t + (Number(st.weight) || 0) * (Number(st.reps) || 0), 0)) + ' ' + UNIT;
+    const setsHtml = e.sets.map((st, i) => `
+      <div style="display:grid;grid-template-columns:44px 1fr;gap:10px;font-size:12px" class="mono">
+        <span style="color:${COLOR.m1}">SET ${i + 1}</span>
+        <span style="color:${COLOR.m6}">${Number(st.weight) ? Number(st.weight) + ' ' + UNIT : 'bodyweight'}  ×  ${st.reps} reps</span>
+      </div>`).join('');
+    return `
+      <div style="padding:14px 16px;background:#101012;border-top:1px solid rgba(255,255,255,.055)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px">
+          <div style="font-size:14.5px;font-weight:600">${esc(e.name)}</div>
+          <div class="mono" style="font-size:10px;color:${COLOR.m2}">${exVol}</div>
         </div>
-        
-        <!-- ================= MODAL OVERLAY ================= -->
-        <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-            <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl overflow-y-auto max-h-[80vh]" id="modal-content"></div>
-        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">${setsHtml}</div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr auto;align-items:end;gap:12px;margin:8px 0 20px">
+      <div>
+        <div style="font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1">${esc(detail.split)}</div>
+        <div class="mono" style="font-size:10.5px;color:${COLOR.m3};margin-top:7px">${new Date(detail.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · ${setCount(detail)} sets · ${fmt(vol(detail))} ${UNIT}</div>
+      </div>
+      <button onclick="onCopyDetail()" id="copy-detail-btn" style="background:${COLOR.gold};border:0;color:${COLOR.goldFg};border-radius:10px;padding:11px 15px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">${state.copied ? 'Copied ✓' : 'Copy'}</button>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
-    <script>
-        const DEFAULT_EXERCISES = {
-            Push: ['Barbell Bench Press', 'Incline Dumbbell Press', 'Overhead Press', 'Lateral Raises', 'Tricep Pushdowns', 'Skull Crushers'],
-            Pull: ['Barbell Deadlift', 'Pull-ups', 'Bent Over Rows', 'Barbell Curls', 'Face Pulls', 'Shrugs'],
-            Legs: ['Barbell Squat', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Calf Raises', 'Romanian Deadlift']
-        };
+    <div style="border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden">${exercisesHtml}</div>
 
-        let historyData = [];
-        let lastWorkoutTemplate = { Push: null, Pull: null, Legs: null };
-        let currentWorkout = null;
-        let pbChartInstance = null;
+    <div style="margin-top:16px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:#0F0F11;padding:14px 16px">
+      <div class="mono" style="font-size:9.5px;letter-spacing:.16em;color:${COLOR.m2};margin-bottom:9px">PLAIN TEXT — FOR PASTING</div>
+      <pre class="mono" style="margin:0;font-size:11px;line-height:1.65;color:#A9A7A3;white-space:pre-wrap;word-break:break-word">${esc(plainText(detail))}</pre>
+    </div>
 
-        function loadData() {
-            const h = localStorage.getItem('workoutHistory');
-            const t = localStorage.getItem('lastWorkoutTemplate');
-            historyData = h ? JSON.parse(h) : [];
-            lastWorkoutTemplate = t ? JSON.parse(t) : { Push: null, Pull: null, Legs: null };
-        }
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button onclick="onRepeatSession()" style="flex:1;background:transparent;border:1px solid rgba(255,255,255,.14);color:${COLOR.m5};border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer">Repeat as new session</button>
+      <button onclick="onDeleteSession()" style="background:transparent;border:1px solid rgba(199,100,90,.4);color:${COLOR.red};border-radius:10px;padding:12px 16px;font-size:13px;font-weight:600;cursor:pointer">Delete</button>
+    </div>
+  `;
+}
+function onCopyDetail() {
+  const detail = history.find(h => h.id === state.detailId);
+  if (!detail) return;
+  const txt = plainText(detail);
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).catch(() => {});
+  state.copied = true;
+  renderDetail();
+  clearTimeout(copyTimeout);
+  copyTimeout = setTimeout(() => { state.copied = false; renderDetail(); }, 2000);
+  flash('SESSION COPIED TO CLIPBOARD');
+}
+function onRepeatSession() {
+  const detail = history.find(h => h.id === state.detailId);
+  if (detail) startWorkout(detail.split, detail);
+}
+function onDeleteSession() {
+  showConfirm('Delete session?', 'Are you sure you want to delete this workout session? This cannot be undone.', () => {
+    history = history.filter(h => h.id !== state.detailId);
+    saveData();
+    state.detailId = null;
+    flash('SESSION DELETED');
+    goTo('dashboard');
+  });
+}
 
-        function saveData() {
-            localStorage.setItem('workoutHistory', JSON.stringify(historyData));
-            localStorage.setItem('lastWorkoutTemplate', JSON.stringify(lastWorkoutTemplate));
-        }
+/* ============================== RENDER: PROGRESS ============================== */
+function renderProgress() {
+  const el = document.getElementById('view-pbs');
+  const names = [];
+  history.forEach(h => h.exercises.forEach(e => { if (!names.includes(e.name)) names.push(e.name); }));
 
-        function startWorkout(type) {
-            currentWorkout = { id: Date.now().toString(), type, date: new Date().toISOString(), exercises: [] };
-            renderActiveWorkout(type);
-        }
+  if (!names.length) {
+    el.innerHTML = `
+      <div style="padding:0 20px">
+        <div style="font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1;margin:10px 0 18px">Progress.</div>
+        <div style="border:1px dashed rgba(255,255,255,.16);border-radius:14px;padding:24px;text-align:center;color:${COLOR.m3};font-size:13px">No data recorded yet. Log workouts to see your charts here.</div>
+      </div>`;
+    return;
+  }
 
-        function renderActiveWorkout(type) {
-            switchTab('active-workout');
-            const container = document.getElementById('active-workout-container');
-            const template = lastWorkoutTemplate[type];
-            const exercises = template ? template.exercises.map(e => e.name) : DEFAULT_EXERCISES[type];
-            
-            let html = `
-                <div class="flex flex-col h-full bg-slate-50">
-                    <div class="flex items-center justify-between bg-white border-b border-slate-200 p-6 sticky top-0 z-10">
-                        <div>
-                            <h2 class="text-2xl font-extrabold text-slate-900">${type}</h2>
-                            <p class="text-xs text-slate-500 mt-1">${new Date().toLocaleDateString('en-GB')}</p>
-                        </div>
-                        <button onclick="finishWorkout()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                            <i class="ph-bold ph-check mr-2"></i> Finish
-                        </button>
-                    </div>
-                    <div class="flex-1 overflow-y-auto pb-20">
-            `;
+  const pbEx = names.includes(state.pbEx) ? state.pbEx : names[0];
+  state.pbEx = pbEx;
+  const exOptions = names.slice().sort((a, b) => a.localeCompare(b));
 
-            exercises.forEach((exName, idx) => {
-                const lastSets = template ? (template.exercises.find(e => e.name === exName)?.sets || []) : [];
-                html += `
-                    <div class="bg-white border-b border-slate-200 px-6 py-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="font-bold text-slate-900">${exName}</h3>
-                            <button onclick="showSwapModal(${idx}, '${type}')" class="text-slate-400 hover:text-slate-600">
-                                <i class="ph-bold ph-swap text-lg"></i>
-                            </button>
-                        </div>
-                        <div id="ex-${idx}-sets" class="space-y-2"></div>
-                        <button onclick="addSetUI(${idx})" class="mt-3 text-sm text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1">
-                            <i class="ph-bold ph-plus text-lg"></i> Add Set
-                        </button>
-                    </div>
-                `;
-            });
+  const series = history.filter(h => h.exercises.some(e => e.name === pbEx)).slice(0, 10).reverse().map(h => {
+    const e = h.exercises.find(x => x.name === pbEx);
+    return {
+      ts: h.date, sets: e.sets.length,
+      peak: Math.max(0, ...e.sets.map(st => Number(st.weight) || 0)),
+      v: e.sets.reduce((t, st) => t + (Number(st.weight) || 0) * (Number(st.reps) || 0), 0),
+      reps: e.sets.reduce((t, st) => t + (Number(st.reps) || 0), 0)
+    };
+  });
 
-            html += `
-                    <div class="bg-white border-b border-slate-200 px-6 py-4">
-                        <button onclick="addNewExerciseUI('${type}')" class="w-full text-center text-slate-500 hover:text-slate-700 font-bold py-2 flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg transition-colors">
-                            <i class="ph-bold ph-plus text-lg"></i> Add Exercise
-                        </button>
-                    </div>
-                </div></div>
-            `;
-            container.innerHTML = html;
-            
-            // Populate sets
-            exercises.forEach((exName, idx) => {
-                const template = lastWorkoutTemplate[type];
-                const lastSets = template ? (template.exercises.find(e => e.name === exName)?.sets || []) : [];
-                renderSetsForExercise(idx, lastSets);
-            });
-        }
+  const W = 340, H = 176, pad = { l: 6, r: 6, t: 10, b: 8 };
+  const n = Math.max(1, series.length);
+  const xOf = i => pad.l + (n === 1 ? (W - pad.l - pad.r) / 2 : i * (W - pad.l - pad.r) / (n - 1));
+  const band = (vals, topFrac, botFrac) => {
+    const mx = Math.max(...vals, 1), mn = Math.min(...vals, mx);
+    const rng = (mx - mn) || mx * 0.15;
+    const lo = mn - rng * 0.25, hi = mx + rng * 0.1;
+    const y0 = pad.t + topFrac * (H - pad.t - pad.b), y1 = pad.t + botFrac * (H - pad.t - pad.b);
+    return vals.map(v => y1 - ((v - lo) / (hi - lo || 1)) * (y1 - y0));
+  };
+  const defs = [
+    { label: 'VOLUME', color: COLOR.blue, top: 0.02, bot: 0.32, vals: series.map(p => p.v), latest: series.length ? fmt(series[series.length - 1].v) : '—' },
+    { label: 'PEAK ' + UNIT.toUpperCase(), color: COLOR.gold, top: 0.36, bot: 0.66, vals: series.map(p => p.peak), latest: series.length ? series[series.length - 1].peak : '—' },
+    { label: 'REPS', color: COLOR.purple, top: 0.70, bot: 1.0, vals: series.map(p => p.reps), latest: series.length ? series[series.length - 1].reps : '—' }
+  ];
+  const lines = defs.map(d => {
+    const ys = band(d.vals, d.top, d.bot);
+    const pts = ys.map((y, i) => [xOf(i), y]);
+    const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const dots = pts.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${i === pts.length - 1 ? 4 : 2.6}" fill="#0B0B0C" stroke="${d.color}" stroke-width="${i === pts.length - 1 ? 2.6 : 1.6}"></circle>`).join('');
+    return { ...d, path, dots };
+  });
+  const xLabels = series.map((p, i) => ({ i, p })).filter(o => n <= 5 || o.i % Math.ceil(n / 5) === 0 || o.i === n - 1)
+    .map(o => dateShort(o.p.ts));
+  const gridY = [0.25, 0.55, 0.85].map(f => pad.t + f * (H - pad.t - pad.b));
 
-        function renderSetsForExercise(exIdx, sets) {
-            const container = document.getElementById(`ex-${exIdx}-sets`);
-            if (!container) return;
-            
-            let html = sets.map((s, setIdx) => `
-                <div class="flex gap-2">
-                    <input type="number" placeholder="Wt" value="${s.w || ''}" data-ex="${exIdx}" data-set="${setIdx}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                    <input type="number" placeholder="Reps" value="${s.r || ''}" data-ex="${exIdx}" data-set="${setIdx}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                    <input type="number" placeholder="Sets" value="${s.s || ''}" data-ex="${exIdx}" data-set="${setIdx}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                    <button onclick="removeSetUI(${exIdx}, ${setIdx})" class="text-slate-400 hover:text-red-600">
-                        <i class="ph-bold ph-x text-lg"></i>
-                    </button>
-                </div>
-            `).join('');
-            
-            container.innerHTML = html;
-        }
+  const peaks = series.map(p => p.peak);
+  const pMax = peaks.length ? Math.max(...peaks) : 0;
+  const delta = peaks.length ? peaks[peaks.length - 1] - peaks[0] : 0;
+  const best = series.reduce((b, p) => p.peak > (b ? b.peak : -1) ? p : b, null);
+  const totalVol = series.reduce((t, p) => t + p.v, 0);
 
-        function addSetUI(exIdx) {
-            const container = document.getElementById(`ex-${exIdx}-sets`);
-            const count = container.children.length;
-            const div = document.createElement('div');
-            div.className = 'flex gap-2';
-            div.innerHTML = `
-                <input type="number" placeholder="Wt" data-ex="${exIdx}" data-set="${count}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                <input type="number" placeholder="Reps" data-ex="${exIdx}" data-set="${count}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                <input type="number" placeholder="Sets" data-ex="${exIdx}" data-set="${count}" class="w-1/3 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500">
-                <button onclick="removeSetUI(${exIdx}, ${count})" class="text-slate-400 hover:text-red-600">
-                    <i class="ph-bold ph-x text-lg"></i>
-                </button>
-            `;
-            container.appendChild(div);
-        }
+  const exLogHtml = series.slice().reverse().map(p => `
+    <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:13px 16px;background:#101012;border-top:1px solid rgba(255,255,255,.055)">
+      <div class="mono" style="font-size:10px;color:${COLOR.m2};width:44px">${dateShort(p.ts)}</div>
+      <div class="mono" style="font-size:12px;color:${COLOR.m5}">${p.sets} × ${Math.round(p.reps / p.sets)} reps · ${fmt(p.v)} ${UNIT}</div>
+      <div class="mono" style="font-size:12px;font-weight:700;color:${p.peak >= (best ? best.peak : 0) ? COLOR.gold : COLOR.m5}">${p.peak} ${UNIT}</div>
+    </div>`).join('');
 
-        function removeSetUI(exIdx, setIdx) {
-            const container = document.getElementById(`ex-${exIdx}-sets`);
-            if (container.children[setIdx]) {
-                container.children[setIdx].remove();
-            }
-        }
+  el.innerHTML = `
+    <div style="padding:0 20px"><div style="font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1;margin:10px 0 18px">Progress.</div></div>
+    <div style="padding:0 20px 18px">
+      <div class="mono" style="font-size:9.5px;letter-spacing:.18em;color:${COLOR.m2};margin-bottom:8px">EXERCISE</div>
+      <div style="position:relative">
+        <select id="pb-select" onchange="onPickEx(this.value)" style="width:100%;box-sizing:border-box;appearance:none;background:#141416;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px 44px 14px 15px;color:${COLOR.text};font-size:15px;font-weight:600;outline:none;cursor:pointer">
+          ${exOptions.map(n => `<option value="${esc(n)}" ${n === pbEx ? 'selected' : ''} style="background:#141416;color:${COLOR.text}">${esc(n)}</option>`).join('')}
+        </select>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);color:${COLOR.gold};pointer-events:none"><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+    </div>
+    <div style="padding:0 20px">
+      <div style="border:1px solid rgba(255,255,255,.08);border-radius:16px;background:linear-gradient(180deg,#141416,#101012);padding:20px 18px 14px">
+        <div class="mono" style="font-size:9.5px;letter-spacing:.18em;color:${COLOR.m2}">ALL-TIME MAX</div>
+        <div style="display:flex;align-items:flex-end;gap:10px;margin-top:8px">
+          <div class="mono" style="font-size:46px;font-weight:700;letter-spacing:-.03em;line-height:1">${pMax}</div>
+          <div class="mono" style="font-size:13px;color:${COLOR.m3};padding-bottom:7px">${UNIT}</div>
+          <div style="flex:1"></div>
+          <div style="text-align:right;padding-bottom:6px">
+            <div class="mono" style="font-size:13px;font-weight:700;color:${delta > 0 ? COLOR.green : (delta < 0 ? COLOR.red : COLOR.m4)}">${delta >= 0 ? '+' : ''}${delta} ${UNIT}</div>
+            <div class="mono" style="font-size:9px;color:${COLOR.m1};letter-spacing:.1em">SINCE START</div>
+          </div>
+        </div>
 
-        function addNewExerciseUI(type) {
-            const defaults = DEFAULT_EXERCISES[type];
-            const options = defaults.map(e => `<option value="${e}">${e}</option>`).join('');
-            
-            document.getElementById('modal-content').innerHTML = `
-                <h2 class="text-xl font-bold text-slate-900 mb-4">Add New Exercise</h2>
-                <label class="block text-sm font-bold text-slate-700 mb-2">Choose Exercise</label>
-                <select id="new-ex-select" onchange="toggleCustomInput()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 mb-4 font-semibold outline-none">
-                    <option value="">Select...</option>
-                    ${options}
-                    <option value="__OTHER__">Other (Custom)</option>
-                </select>
-                <input type="text" id="custom-ex-input" placeholder="Enter exercise name" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 mb-4 font-semibold outline-none hidden">
-                <button onclick="confirmAddNewExercise('${type}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">
-                    Add Exercise
-                </button>
-            `;
-            document.getElementById('modal-overlay').classList.remove('hidden');
-        }
+        <svg viewBox="0 0 340 190" width="100%" style="display:block;margin-top:18px;overflow:visible">
+          ${gridY.map(y => `<line x1="0" x2="340" y1="${y}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1"></line>`).join('')}
+          ${lines.map(ln => `<g><path d="${ln.path}" fill="none" stroke="${ln.color}" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round"></path>${ln.dots}</g>`).join('')}
+        </svg>
+        <div style="display:flex;justify-content:space-between;gap:6px;margin-top:6px">
+          ${xLabels.map(l => `<div class="mono" style="font-size:9px;color:${COLOR.m1};white-space:nowrap">${l.replace(' ', ' ')}</div>`).join('')}
+        </div>
 
-        function toggleCustomInput() {
-            const select = document.getElementById('new-ex-select');
-            const input = document.getElementById('custom-ex-input');
-            if (select.value === '__OTHER__') {
-                input.classList.remove('hidden');
-                input.focus();
-            } else {
-                input.classList.add('hidden');
-            }
-        }
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:8px 0 6px">
+          ${lines.map(ln => `
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+              <div style="width:12px;height:2px;background:${ln.color}"></div>
+              <span class="mono" style="font-size:8.5px;color:${COLOR.m3};letter-spacing:.1em">${ln.label}</span>
+            </div>
+            <div class="mono" style="font-size:15px;font-weight:600;color:${ln.color}">${ln.latest}</div>
+          </div>`).join('')}
+        </div>
+      </div>
 
-        function confirmAddNewExercise(type) {
-            const select = document.getElementById('new-ex-select');
-            const input = document.getElementById('custom-ex-input');
-            let exName = select.value === '__OTHER__' ? input.value.trim() : select.value;
-            
-            if (!exName) {
-                showMessage("Oops", "Please select or enter an exercise name");
-                return;
-            }
-            
-            // Get the main container
-            const mainContainer = document.getElementById('active-workout-container');
-            if (!mainContainer) {
-                showMessage("Error", "Could not find container");
-                return;
-            }
-            
-            // Find the scrollable inner div (the one with pb-20)
-            const innerContainer = mainContainer.querySelector('div.flex-1.overflow-y-auto');
-            if (!innerContainer) {
-                showMessage("Error", "Could not find inner container");
-                return;
-            }
-            
-            const count = innerContainer.querySelectorAll('h3').length;
-            
-            const div = document.createElement('div');
-            div.className = 'bg-white border-b border-slate-200 px-6 py-4';
-            div.innerHTML = `
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-bold text-slate-900">${exName}</h3>
-                    <button onclick="showSwapModal(${count}, '${type}')" class="text-slate-400 hover:text-slate-600">
-                        <i class="ph-bold ph-swap text-lg"></i>
-                    </button>
-                </div>
-                <div id="ex-${count}-sets" class="space-y-2"></div>
-                <button onclick="addSetUI(${count})" class="mt-3 text-sm text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1">
-                    <i class="ph-bold ph-plus text-lg"></i> Add Set
-                </button>
-            `;
-            
-            innerContainer.appendChild(div);
-            document.getElementById('modal-overlay').classList.add('hidden');
-            showMessage("Success", `Added ${exName}!`);
-        }
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden;margin-top:14px">
+        <div style="background:#101012;padding:15px 16px">
+          <div class="mono" style="font-size:9px;letter-spacing:.16em;color:${COLOR.m2};margin-bottom:7px">EST. 1RM</div>
+          <div class="mono" style="font-size:18px;font-weight:600">${best ? Math.round(best.peak * (1 + 8 / 30)) : '—'}<span style="font-size:10px;color:${COLOR.m1};margin-left:3px">${UNIT}</span></div>
+        </div>
+        <div style="background:#101012;padding:15px 16px">
+          <div class="mono" style="font-size:9px;letter-spacing:.16em;color:${COLOR.m2};margin-bottom:7px">BEST SET</div>
+          <div class="mono" style="font-size:18px;font-weight:600">${best ? best.peak + '×' + Math.round(best.reps / best.sets) : '—'}</div>
+        </div>
+        <div style="background:#101012;padding:15px 16px">
+          <div class="mono" style="font-size:9px;letter-spacing:.16em;color:${COLOR.m2};margin-bottom:7px">TOTAL VOLUME</div>
+          <div class="mono" style="font-size:18px;font-weight:600">${fmt(totalVol)}<span style="font-size:10px;color:${COLOR.m1};margin-left:3px">${UNIT}</span></div>
+        </div>
+        <div style="background:#101012;padding:15px 16px">
+          <div class="mono" style="font-size:9px;letter-spacing:.16em;color:${COLOR.m2};margin-bottom:7px">SESSIONS</div>
+          <div class="mono" style="font-size:18px;font-weight:600">${series.length}</div>
+        </div>
+      </div>
 
-        function showSwapModal(exIdx, type) {
-            const allEx = DEFAULT_EXERCISES[type];
-            const current = document.querySelector(`#ex-${exIdx}-sets`).previousElementSibling.querySelector('h3').textContent;
-            const options = allEx.filter(e => e !== current).map(e => `<option value="${e}">${e}</option>`).join('');
-            
-            document.getElementById('modal-content').innerHTML = `
-                <h2 class="text-xl font-bold text-slate-900 mb-4">Swap Exercise</h2>
-                <select id="swap-select" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 mb-4">
-                    <option value="">Choose...</option>
-                    ${options}
-                </select>
-                <button onclick="confirmSwap(${exIdx})" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">
-                    Confirm
-                </button>
-            `;
-            document.getElementById('modal-overlay').classList.remove('hidden');
-        }
+      <div class="mono" style="font-size:10px;letter-spacing:.18em;color:${COLOR.m2};margin:26px 0 12px">SESSION LOG</div>
+      <div style="border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden">${exLogHtml}</div>
+    </div>
+  `;
+}
+function onPickEx(name) { state.pbEx = name; renderProgress(); }
 
-        function confirmSwap(exIdx) {
-            const val = document.getElementById('swap-select').value;
-            if (val) {
-                const header = document.querySelector(`#ex-${exIdx}-sets`).previousElementSibling.querySelector('h3');
-                header.textContent = val;
-                document.getElementById('modal-overlay').classList.add('hidden');
-            }
-        }
+/* ============================== RENDER: ACTIVE SESSION ============================== */
+function renderActiveWorkout() {
+  const el = document.getElementById('view-active-workout');
+  const sess = state.session;
+  if (!sess) { el.innerHTML = ''; return; }
 
-        function finishWorkout() {
-            const exercises = [];
-            document.querySelectorAll('[data-ex]').forEach(inp => {
-                const exIdx = inp.dataset.ex;
-                const exName = document.querySelector(`#ex-${exIdx}-sets`).previousElementSibling.querySelector('h3').textContent;
-                
-                if (!exercises.find(e => e.name === exName)) {
-                    exercises.push({ name: exName, sets: [] });
-                }
-                
-                const ex = exercises.find(e => e.name === exName);
-                const setIdx = parseInt(inp.dataset.set);
-                if (!ex.sets[setIdx]) ex.sets[setIdx] = { w: null, r: null, s: null };
-                
-                if (inp.className.includes('p-2')) {
-                    const inputs = inp.parentElement.querySelectorAll('input[type="number"]');
-                    ex.sets[setIdx].w = inputs[0].value ? parseInt(inputs[0].value) : null;
-                    ex.sets[setIdx].r = inputs[1].value ? parseInt(inputs[1].value) : null;
-                    ex.sets[setIdx].s = inputs[2].value ? parseInt(inputs[2].value) : null;
-                }
-            });
+  const doneSets = sess.exercises.reduce((t, e) => t + e.sets.filter(x => x.done).length, 0);
+  const allSets = setCount(sess);
 
-            const workout = { ...currentWorkout, exercises };
-            historyData.unshift(workout);
-            lastWorkoutTemplate[currentWorkout.type] = workout;
-            saveData();
-            switchTab('dashboard');
-            renderHistory();
-            showMessage("Success", `${currentWorkout.type} workout logged!`);
-        }
+  const restHtml = state.rest > 0 ? `
+    <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin:14px 20px 0;padding:12px 14px;border:1px solid rgba(200,161,90,.35);background:rgba(200,161,90,.07);border-radius:12px">
+      <div style="width:8px;height:8px;border-radius:99px;background:${COLOR.gold};animation:pulsebar 1.4s ease-in-out infinite"></div>
+      <div class="mono" style="font-size:12px;letter-spacing:.12em;color:#D8C79E">REST ${Math.floor(state.rest / 60)}:${String(state.rest % 60).padStart(2, '0')}</div>
+      <button onclick="stopRest()" style="background:transparent;border:0;color:${COLOR.m4};font-size:11px;letter-spacing:.1em;cursor:pointer" class="mono">SKIP</button>
+    </div>` : '';
 
-        function renderHistory() {
-            const container = document.getElementById('history-list');
-            if (historyData.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 text-sm">No sessions yet</p>';
-                return;
-            }
-            
-            container.innerHTML = historyData.slice(0, 10).map((s, i) => `
-                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="font-bold text-slate-900">${s.type}</h3>
-                        <span class="text-xs text-slate-500">${new Date(s.date).toLocaleDateString('en-GB')}</span>
-                    </div>
-                    <p class="text-sm text-slate-600 mb-3">${s.exercises.length} exercises</p>
-                    <div class="flex gap-2">
-                        <button onclick="viewSessionDetails(${i})" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-2 px-3 rounded-lg text-sm">
-                            <i class="ph-bold ph-eye"></i> View
-                        </button>
-                        <button onclick="deleteSession(${i})" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 px-3 rounded-lg text-sm">
-                            <i class="ph-bold ph-trash"></i> Delete
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
+  const exercisesHtml = sess.exercises.map((e, ei) => {
+    const prevPeak = Math.max(0, ...(e.prev || []).map(p => Number(p.weight) || 0));
+    const nowPeak = Math.max(0, ...e.sets.map(st => Number(st.weight) || 0));
+    const diff = nowPeak - prevPeak;
+    const hasPrev = e.prev && e.prev.length;
+    const progress = hasPrev ? (diff > 0 ? '+' + diff + ' ' + UNIT : (diff < 0 ? diff + ' ' + UNIT : 'MATCH')) : 'NEW';
+    const progressColor = diff > 0 ? COLOR.green : (diff < 0 ? COLOR.red : COLOR.m1);
+    const upColor = ei === 0 ? '#2E2E32' : COLOR.m4;
+    const downColor = ei === sess.exercises.length - 1 ? '#2E2E32' : COLOR.m4;
 
-        function viewSessionDetails(idx) {
-            const s = historyData[idx];
-            const exHTML = s.exercises.map(e => `
-                <div class="border-b border-slate-200 pb-4 mb-4 last:border-b-0">
-                    <h4 class="font-bold text-slate-900 mb-2">${e.name}</h4>
-                    <div class="space-y-1 text-sm text-slate-600">
-                        ${e.sets.map((st, j) => `<div>Set ${j + 1}: ${st.w || '-'} kg × ${st.r || '-'} reps × ${st.s || '-'} sets</div>`).join('')}
-                    </div>
-                </div>
-            `).join('');
-            
-            document.getElementById('modal-content').innerHTML = `
-                <h2 class="text-xl font-bold text-slate-900 mb-2">${s.type}</h2>
-                <p class="text-sm text-slate-500 mb-4">${new Date(s.date).toLocaleDateString('en-GB')}</p>
-                <div class="max-h-96 overflow-y-auto mb-4">${exHTML}</div>
-                <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold py-2 rounded-lg">Close</button>
-            `;
-            document.getElementById('modal-overlay').classList.remove('hidden');
-        }
+    const setsHtml = e.sets.map((st, si) => {
+      const rowBg = st.done ? 'rgba(200,161,90,.05)' : 'transparent';
+      const textColor = st.done ? COLOR.goldLight : COLOR.text;
+      const checkBg = st.done ? 'rgba(200,161,90,.18)' : 'transparent';
+      const checkBorder = st.done ? 'rgba(200,161,90,.6)' : 'rgba(255,255,255,.12)';
+      const checkFg = st.done ? COLOR.goldLight : '#3E3E43';
+      return `
+      <div style="display:grid;grid-template-columns:20px 1fr 1fr 36px 24px;align-items:center;gap:7px;padding:8px 14px 8px 16px;border-top:1px solid rgba(255,255,255,.05);background:${rowBg}">
+        <div class="mono" style="font-size:11px;color:${COLOR.m1}">${si + 1}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(255,255,255,.1);border-radius:9px;height:38px">
+          <button onclick="adjustSet(${ei},${si},'weight',-2.5)" style="background:transparent;border:0;color:${COLOR.m4};font-size:16px;width:28px;height:36px;cursor:pointer">−</button>
+          <div class="mono" style="font-size:13.5px;font-weight:600;color:${textColor}">${st.weight}</div>
+          <button onclick="adjustSet(${ei},${si},'weight',2.5)" style="background:transparent;border:0;color:${COLOR.m4};font-size:16px;width:28px;height:36px;cursor:pointer">+</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(255,255,255,.1);border-radius:9px;height:38px">
+          <button onclick="adjustSet(${ei},${si},'reps',-1)" style="background:transparent;border:0;color:${COLOR.m4};font-size:16px;width:28px;height:36px;cursor:pointer">−</button>
+          <div class="mono" style="font-size:13.5px;font-weight:600;color:${textColor}">${st.reps}</div>
+          <button onclick="adjustSet(${ei},${si},'reps',1)" style="background:transparent;border:0;color:${COLOR.m4};font-size:16px;width:28px;height:36px;cursor:pointer">+</button>
+        </div>
+        <button onclick="toggleSetDone(${ei},${si})" style="height:38px;border-radius:9px;cursor:pointer;font-size:15px;font-weight:700;background:${checkBg};border:1px solid ${checkBorder};color:${checkFg}">✓</button>
+        <button onclick="removeSet(${ei},${si})" style="height:38px;background:transparent;border:0;color:#4F4F54;font-size:14px;cursor:pointer;padding:0">✕</button>
+      </div>`;
+    }).join('');
 
-        function deleteSession(idx) {
-            if (confirm('Delete this session?')) {
-                historyData.splice(idx, 1);
-                saveData();
-                renderHistory();
-            }
-        }
+    return `
+    <div style="border:1px solid rgba(255,255,255,.08);border-radius:14px;background:#101012;overflow:hidden">
+      <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:12px 12px 10px 16px">
+        <div>
+          <div style="font-size:15px;font-weight:600;letter-spacing:-.01em">${esc(e.name)}</div>
+          <div class="mono" style="font-size:10px;color:${COLOR.m2};margin-top:4px">${hasPrev ? 'last · ' + e.prev.map(p => p.weight + '×' + p.reps).join('  ') : 'first time'}</div>
+        </div>
+        <div class="mono" style="font-size:10px;color:${progressColor};letter-spacing:.1em">${progress}</div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <button onclick="reorderExercise(${ei},-1)" style="background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:6px;width:28px;height:20px;color:${upColor};cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 7.5 6 4l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </button>
+          <button onclick="reorderExercise(${ei},1)" style="background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:6px;width:28px;height:20px;color:${downColor};cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column">${setsHtml}</div>
+      <div style="display:flex;gap:18px;padding:11px 16px;border-top:1px solid rgba(255,255,255,.05)">
+        <button onclick="addSet(${ei})" style="background:transparent;border:0;color:${COLOR.gold};font-size:11px;letter-spacing:.12em;cursor:pointer;padding:0" class="mono">+ SET</button>
+        <button onclick="openSheet('swap',${ei})" style="background:transparent;border:0;color:${COLOR.m2};font-size:11px;letter-spacing:.12em;cursor:pointer;padding:0" class="mono">SWAP</button>
+        <div style="flex:1"></div>
+        <button onclick="removeExercise(${ei})" style="background:transparent;border:0;color:${COLOR.m2};font-size:11px;letter-spacing:.12em;cursor:pointer;padding:0" class="mono">REMOVE</button>
+      </div>
+    </div>`;
+  }).join('');
 
-        function switchTab(tab) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`view-${tab}`).classList.remove('hidden');
-            
-            if (tab === 'pbs') renderPBs();
-            if (tab === 'bag') renderBagWorkout();
-            if (tab === 'dashboard') renderHistory();
-        }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:8px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)">
+      <div>
+        <div style="font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.05">${esc(sess.split)}</div>
+        <div class="mono" style="font-size:10.5px;color:${COLOR.m3};margin-top:5px">${doneSets}/${allSets} sets · ${sess.exercises.length} exercises</div>
+      </div>
+      <button onclick="finishWorkout()" style="background:${COLOR.gold};border:0;color:${COLOR.goldFg};border-radius:10px;padding:11px 16px;font-size:13px;font-weight:700;cursor:pointer">Finish</button>
+    </div>
+    ${restHtml}
+    <div style="display:flex;flex-direction:column;gap:12px;padding:14px 20px 0">
+      ${exercisesHtml}
+      <button onclick="openSheet('add')" style="width:100%;background:transparent;border:1px dashed rgba(255,255,255,.16);border-radius:14px;padding:15px;color:${COLOR.m4};font-size:13px;font-weight:600;cursor:pointer">+ Add exercise</button>
+    </div>
+  `;
+}
+function adjustSet(ei, si, field, delta) {
+  mutateSession(x => {
+    const s = x.exercises[ei].sets[si];
+    if (field === 'weight') s.weight = Math.max(0, Math.round((s.weight + delta) * 2) / 2);
+    else s.reps = Math.max(1, s.reps + delta);
+  });
+}
+function toggleSetDone(ei, si) {
+  const wasDone = state.session.exercises[ei].sets[si].done;
+  mutateSession(x => { x.exercises[ei].sets[si].done = !wasDone; });
+  if (!wasDone) startRest(); else stopRest();
+}
+function addSet(ei) {
+  mutateSession(x => {
+    const sets = x.exercises[ei].sets;
+    const last = sets[sets.length - 1] || { weight: 0, reps: 8 };
+    sets.push({ weight: last.weight, reps: last.reps, done: false });
+  });
+}
+function removeSet(ei, si) {
+  mutateSession(x => {
+    x.exercises[ei].sets.splice(si, 1);
+    if (!x.exercises[ei].sets.length) x.exercises.splice(ei, 1);
+  });
+}
+function removeExercise(ei) {
+  const name = state.session.exercises[ei].name;
+  mutateSession(x => { x.exercises.splice(ei, 1); });
+  flash('REMOVED ' + name.toUpperCase());
+}
+function reorderExercise(ei, dir) {
+  mutateSession(x => {
+    const a = x.exercises;
+    const j = ei + dir;
+    if (j < 0 || j >= a.length) return;
+    [a[ei], a[j]] = [a[j], a[ei]];
+  });
+}
 
-        function renderBagWorkout() {
-            document.getElementById('bag-content-container').innerHTML = `
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <label class="text-xs font-bold text-slate-600 uppercase block mb-2">Rounds</label>
-                    <input type="number" id="bag-rounds" placeholder="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-lg font-bold outline-none focus:border-purple-500">
-                    <label class="text-xs font-bold text-slate-600 uppercase block mb-2">Round Length (min)</label>
-                    <input type="number" id="bag-length" placeholder="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-lg font-bold outline-none focus:border-purple-500">
-                    <button onclick="addBagSession()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl">
-                        <i class="ph-bold ph-plus mr-2"></i>Log Session
-                    </button>
-                </div>
-            `;
-        }
+/* ============================== RENDER: SHEET ============================== */
+function renderSheetOverlay() {
+  const overlay = document.getElementById('sheet-overlay');
+  if (!state.sheet) { overlay.classList.add('hidden'); return; }
+  overlay.classList.remove('hidden');
+  document.getElementById('sheet-title').textContent = state.sheet.kind === 'swap' ? 'Swap exercise' : 'Add exercise';
+  document.getElementById('sheet-query-input').value = state.sheetQ;
+  renderSheetDynamic();
+}
+function renderSheetDynamic() {
+  const sheet = state.sheet;
+  if (!sheet) return;
+  const sess = state.session;
+  const q = state.sheetQ.trim().toLowerCase();
+  const taken = sess ? sess.exercises.map(e => e.name) : [];
+  const lib = library();
+  const items = lib
+    .filter(l => !q || l.name.toLowerCase().includes(q))
+    .filter(l => sheet.kind === 'swap' ? l.name !== sess.exercises[sheet.ei].name : !taken.includes(l.name))
+    .slice(0, 40);
+  const exact = lib.some(l => l.name.toLowerCase() === q);
+  const canCreate = !!q && !exact;
 
-        function addBagSession() {
-            const r = parseInt(document.getElementById('bag-rounds').value);
-            const l = parseInt(document.getElementById('bag-length').value);
-            if (r && l) {
-                const bagData = JSON.parse(localStorage.getItem('bagData') || '[]');
-                bagData.unshift({ id: Date.now(), date: new Date().toISOString(), rounds: r, length: l });
-                localStorage.setItem('bagData', JSON.stringify(bagData));
-                renderBagWorkout();
-                showMessage("Success", `Logged ${r} rounds of ${l} minutes!`);
-            }
-        }
+  const createHtml = canCreate ? `
+    <button onclick="createExercise()" style="width:100%;text-align:left;background:rgba(200,161,90,.1);border:1px solid rgba(200,161,90,.45);border-radius:11px;padding:13px 15px;color:${COLOR.goldLight};font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px">+ Use "${esc(state.sheetQ.trim())}"</button>` : '';
 
-        function renderPBs() {
-            const exSet = new Set();
-            historyData.forEach(s => s.exercises.forEach(e => exSet.add(e.name)));
-            const exList = Array.from(exSet).sort();
-            const container = document.getElementById('pb-content-container');
+  window.__sheetItems = items;
+  const itemsHtml = items.map((it, i) => `
+    <button onclick="pickSheetItem(${i})" style="width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:#17171A;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:13px 15px;color:${COLOR.text};font-size:14px;font-weight:500;cursor:pointer;margin-bottom:8px">
+      <span>${esc(it.name)}</span>
+      <span class="mono" style="font-size:9.5px;color:${COLOR.m1};letter-spacing:.1em">${esc(it.group.toUpperCase())}</span>
+    </button>`).join('');
 
-            if (exList.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-500 py-12 bg-white rounded-xl border border-dashed"><i class="ph-fill ph-trophy text-5xl mx-auto text-slate-300 mb-3"></i><p>No data yet</p></div>`;
-                return;
-            }
+  document.getElementById('sheet-dynamic').innerHTML = createHtml + `<div style="display:flex;flex-direction:column">${itemsHtml}</div>`;
+}
+function pickSheetItem(i) {
+  const item = (window.__sheetItems || [])[i];
+  if (item) pickExercise(item.name);
+}
 
-            container.innerHTML = `
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Select Exercise</label>
-                    <select id="pb-select" onchange="updatePBChart()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-semibold outline-none">
-                        ${exList.map(e => `<option value="${e}">${e}</option>`).join('')}
-                    </select>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-1">All-Time Max</h3>
-                    <p id="pb-max" class="text-4xl font-black text-slate-900 mb-4">-- kg</p>
-                    <div class="h-80 w-full"><canvas id="pbChart"></canvas></div>
-                </div>
-            `;
-            updatePBChart();
-        }
-
-        function updatePBChart() {
-            const sel = document.getElementById('pb-select');
-            if (!sel) return;
-            const exName = sel.value;
-            
-            const data = new Map();
-            historyData.forEach(s => {
-                const ex = s.exercises.find(e => e.name === exName);
-                if (ex) {
-                    const w = Math.max(...ex.sets.map(st => st.w || 0), 0);
-                    const v = ex.sets.reduce((sum, st) => sum + ((st.w || 0) * (st.r || 0) * (st.s || 1)), 0);
-                    const reps = ex.sets.reduce((sum, st) => sum + (st.r || 0), 0);
-                    
-                    if (w > 0 || v > 0) {
-                        const key = new Date(s.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-                        if (!data.has(key)) {
-                            data.set(key, { date: key, ts: new Date(s.date).getTime(), w, v, reps });
-                        } else {
-                            const d = data.get(key);
-                            d.w = Math.max(d.w, w);
-                            d.v += v;
-                            d.reps += reps;
-                        }
-                    }
-                }
-            });
-            
-            const chartData = Array.from(data.values()).sort((a, b) => a.ts - b.ts);
-            const maxW = chartData.length > 0 ? Math.max(...chartData.map(d => d.w)) : 0;
-            document.getElementById('pb-max').textContent = `${maxW} kg`;
-
-            const ctx = document.getElementById('pbChart').getContext('2d');
-            if (pbChartInstance) pbChartInstance.destroy();
-            
-            pbChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.map(d => d.date),
-                    datasets: [
-                        {
-                            label: 'Total Volume (kg)',
-                            data: chartData.map(d => d.v),
-                            borderColor: '#06b6d4',
-                            borderWidth: 3,
-                            pointRadius: 4,
-                            pointBackgroundColor: '#fff',
-                            pointBorderColor: '#06b6d4',
-                            yAxisID: 'y',
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Peak Weight (kg)',
-                            data: chartData.map(d => d.w),
-                            borderColor: '#ef4444',
-                            borderWidth: 3,
-                            pointRadius: 4,
-                            pointBackgroundColor: '#fff',
-                            pointBorderColor: '#ef4444',
-                            yAxisID: 'y1',
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Total Reps',
-                            data: chartData.map(d => d.reps),
-                            borderColor: '#8b5cf6',
-                            borderWidth: 3,
-                            pointRadius: 4,
-                            pointBackgroundColor: '#fff',
-                            pointBorderColor: '#8b5cf6',
-                            yAxisID: 'y1',
-                            tension: 0.4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 15, font: { size: 12, weight: 'bold' } } },
-                        tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { size: 13 }, bodyFont: { size: 12, weight: 'bold' } }
-                    },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
-                        y: { position: 'left', title: { display: true, text: 'Total Volume (kg)', color: '#06b6d4', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#06b6d4', font: { size: 11 } } },
-                        y1: { position: 'right', title: { display: true, text: 'Peak Weight & Reps (kg / reps)', color: '#64748b', font: { weight: 'bold' } }, grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } }
-                    }
-                }
-            });
-        }
-
-        function showMessage(title, msg) {
-            document.getElementById('modal-content').innerHTML = `
-                <h2 class="text-xl font-bold text-slate-900 mb-2">${title}</h2>
-                <p class="text-slate-700 mb-6">${msg}</p>
-                <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg">OK</button>
-            `;
-            document.getElementById('modal-overlay').classList.remove('hidden');
-        }
-
-        function exportWorkoutData() {
-            const bagData = localStorage.getItem('bagData');
-            const data = { 
-                historyData, 
-                lastWorkoutTemplate, 
-                bagSessions: bagData ? JSON.parse(bagData) : [],
-                exportDate: new Date().toISOString(),
-                version: '2.1'
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `workout-backup-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-        }
-
-        function importWorkoutData(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                try {
-                    const imported = JSON.parse(evt.target.result);
-                    
-                    // Handle old backup format (string-based)
-                    if (imported.workout_history && typeof imported.workout_history === 'string') {
-                        const oldHistory = JSON.parse(imported.workout_history);
-                        historyData = oldHistory.map(session => ({
-                            id: session.id,
-                            date: session.date,
-                            type: session.split,
-                            exercises: session.exercises.map(ex => ({
-                                name: ex.name,
-                                sets: ex.sets.map(s => ({ w: s.weight, r: s.reps, s: 1 }))
-                            })),
-                            rating: session.rating || null
-                        }));
-                        
-                        // Update last workout template
-                        oldHistory.slice(0, 3).forEach(session => {
-                            if (session.split) {
-                                lastWorkoutTemplate[session.split] = {
-                                    id: session.id,
-                                    date: session.date,
-                                    type: session.split,
-                                    exercises: session.exercises.map(ex => ({
-                                        name: ex.name,
-                                        sets: ex.sets.map(s => ({ w: s.weight, r: s.reps, s: 1 }))
-                                    }))
-                                };
-                            }
-                        });
-                    } else if (imported.historyData) {
-                        historyData = imported.historyData;
-                    }
-                    
-                    // Handle template
-                    if (imported.lastWorkoutTemplate) lastWorkoutTemplate = imported.lastWorkoutTemplate;
-                    
-                    // Handle bag sessions - multiple formats for backward compatibility
-                    if (imported.bagSessions && Array.isArray(imported.bagSessions)) {
-                        localStorage.setItem('bagData', JSON.stringify(imported.bagSessions));
-                    } else if (imported.bagData && Array.isArray(imported.bagData)) {
-                        localStorage.setItem('bagData', JSON.stringify(imported.bagData));
-                    } else if (imported.bagData && typeof imported.bagData === 'string') {
-                        localStorage.setItem('bagData', imported.bagData);
-                    } else if (imported.bag_workout_history && typeof imported.bag_workout_history === 'string') {
-                        localStorage.setItem('bagData', imported.bag_workout_history);
-                    }
-                    
-                    saveData();
-                    renderHistory();
-                    showMessage("Success", "Data imported! ✓");
-                } catch (err) {
-                    showMessage("Error", "Failed to import: " + err.message);
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        window.onload = () => {
-            loadData();
-            switchTab('dashboard');
-        };
-    </script>
+/* ============================== BOOT ============================== */
+render();
+</script>
 </body>
 </html>
