@@ -303,15 +303,58 @@ function exportWorkoutData() {
     showMessage('Error', 'Error exporting data: ' + esc(e.message));
   }
 }
+function normalizeImportedSession(s) {
+  const dateVal = typeof s.date === 'number' ? s.date : Date.parse(s.date);
+  return {
+    id: s.id != null ? String(s.id) : ('n' + (Number.isFinite(dateVal) ? dateVal : Date.now()) + Math.random().toString(36).slice(2, 7)),
+    split: s.split || s.type || 'Push',
+    date: Number.isFinite(dateVal) ? dateVal : Date.now(),
+    exercises: (s.exercises || []).map(e => ({
+      name: e.name,
+      sets: (e.sets || []).map(st => ({
+        weight: Number(st.weight ?? st.w) || 0,
+        reps: Number(st.reps ?? st.r) || 0
+      }))
+    }))
+  };
+}
 function importWorkoutData(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    let importedData;
-    try { importedData = JSON.parse(e.target.result); } catch (err) { showMessage('Error', 'Invalid backup file format.'); return; }
+    let data;
+    try { data = JSON.parse(e.target.result); } catch (err) { showMessage('Error', 'Invalid backup file format.'); return; }
+
+    // Backups can come in two shapes: this app's own Export (a flat dump of
+    // localStorage, values already JSON strings), or an older/other export
+    // that nests the session list directly as `historyData`/`workout_history`
+    // with different field names (type/w/r instead of split/weight/reps).
+    let importedHistory = null;
+    if (Array.isArray(data.historyData)) importedHistory = data.historyData;
+    else if (Array.isArray(data.workout_history)) importedHistory = data.workout_history;
+    else if (typeof data.workout_history === 'string') {
+      try { const parsed = JSON.parse(data.workout_history); if (Array.isArray(parsed)) importedHistory = parsed; } catch (err) {}
+    }
+
+    if (importedHistory) {
+      const normalized = importedHistory.map(normalizeImportedSession).sort((a, b) => b.date - a.date);
+      showConfirm('Restore backup?', 'This will replace your current ' + history.length + ' logged session(s) with ' + normalized.length + ' session(s) from this backup. This cannot be undone.', () => {
+        history = normalized;
+        saveData();
+        showMessage('Restored', normalized.length + ' session(s) restored successfully. The app will now reload.');
+        setTimeout(() => location.reload(), 1200);
+      });
+      return;
+    }
+
+    const keys = Object.keys(data);
+    if (!keys.length) { showMessage('Error', 'This backup file has no recognizable workout data.'); return; }
     showConfirm('Restore backup?', 'This will completely overwrite your current app data with the selected backup. This cannot be undone.', () => {
-      Object.keys(importedData).forEach(key => localStorage.setItem(key, importedData[key]));
+      keys.forEach(key => {
+        const v = data[key];
+        localStorage.setItem(key, typeof v === 'string' ? v : JSON.stringify(v));
+      });
       showMessage('Restored', 'Workout data restored successfully. The app will now reload.');
       setTimeout(() => location.reload(), 1200);
     });
