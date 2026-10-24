@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PPL Tracker</title>
+<title>Gym Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -93,11 +93,34 @@ const COLOR = {
   text:'#F2F0ED', red:'#C7645A', green:'#9AC48C', blue:'#7FA0C4', purple:'#9C8FBF',
   m1:'#5C5C61', m2:'#6E6E74', m3:'#7A7A80', m4:'#8A8A8F', m5:'#B9B9BE', m6:'#D5D3CF'
 };
-const BAR = { Push: COLOR.gold, Pull: COLOR.blue, Legs: COLOR.green };
+/* Training splits. Add a new split here and it appears in the selector automatically.
+   Exercise names match the existing library so history/PBs carry across splits. */
+const SPLITS = {
+  ppl: {
+    label: 'Push / Pull / Legs', short: 'PPL', logLabel: 'PPL LOG',
+    workouts: [
+      { name: 'Push', color: COLOR.gold,  defaults: ['Barbell Bench Press','Dumbbell Bench Press','Machine Chest Press','Incline Dumbbell Press','Incline Barbell Press'] },
+      { name: 'Pull', color: COLOR.blue,  defaults: ['Deadlifts','Sumo Deadlifts','Rack Pulls','Pull Ups','Lat Pulldowns'] },
+      { name: 'Legs', color: COLOR.green, defaults: ['Squats','Leg Press','Hack Squats','Front Squats','Romanian Deadlifts'] }
+    ]
+  },
+  four: {
+    label: '4-Split', short: '4-SPLIT', logLabel: '4-SPLIT LOG',
+    workouts: [
+      { name: 'Chest & Core',        color: COLOR.gold,   defaults: ['Incline Dumbbell Press','Cable Flys','Lateral Raises','Chest Dips','Leg Raises','Pallof Press'] },
+      { name: 'Back & Biceps',       color: COLOR.blue,   defaults: ['Lat Pulldowns','Free Weight Row','Cable Row','Bench Bicep Curl','Rope Hammer Curl','Preacher Curls'] },
+      { name: 'Shoulders & Triceps', color: COLOR.purple, defaults: ['Dumbbell Shoulder Press','Lateral Raises','Face Pulls','Tricep Pushdowns','Overhead Tricep Extension','Dips'] },
+      { name: 'Legs',                color: COLOR.green,  defaults: ['Hack Squats','Leg Curls','Leg Extensions','Calf Raises','Back Extensions','Hip Abductors'] }
+    ]
+  }
+};
+const DEFAULT_SPLIT = 'ppl';
+function workoutDef(program, name) { return (SPLITS[program] || SPLITS[DEFAULT_SPLIT]).workouts.find(w => w.name === name); }
 const EXERCISE_GROUPS = {
-  Push: ['Barbell Bench Press','Dumbbell Bench Press','Machine Chest Press','Incline Dumbbell Press','Incline Barbell Press','Smith Machine Incline','Overhead Press','Dumbbell Shoulder Press','Machine Shoulder Press','Lateral Raises','Cable Lateral Raises','Machine Lateral Raises','Tricep Pushdowns','Overhead Tricep Extension','Skull Crushers','Close Grip Bench Press','Dips'],
-  Pull: ['Deadlifts','Sumo Deadlifts','Rack Pulls','Pull Ups','Lat Pulldowns','Assisted Pull Ups','Barbell Rows','Dumbbell Rows','T-Bar Rows','Straight Arm Pulldowns','Face Pulls','Rear Delt Flys','Reverse Pec Deck','Bicep Curls','Hammer Curls','Preacher Curls'],
-  Legs: ['Squats','Leg Press','Hack Squats','Front Squats','Romanian Deadlifts','Leg Curls','Good Mornings','Leg Extensions','Sissy Squats','Hamstring Curls','Glute Ham Raises','Calf Raises','Seated Calf Raises','Lunges']
+  Push: ['Barbell Bench Press','Dumbbell Bench Press','Machine Chest Press','Incline Dumbbell Press','Incline Barbell Press','Smith Machine Incline','Overhead Press','Dumbbell Shoulder Press','Machine Shoulder Press','Lateral Raises','Cable Lateral Raises','Machine Lateral Raises','Tricep Pushdowns','Overhead Tricep Extension','Skull Crushers','Close Grip Bench Press','Dips','Cable Flys','Chest Dips'],
+  Pull: ['Deadlifts','Sumo Deadlifts','Rack Pulls','Pull Ups','Lat Pulldowns','Assisted Pull Ups','Barbell Rows','Dumbbell Rows','T-Bar Rows','Straight Arm Pulldowns','Face Pulls','Rear Delt Flys','Reverse Pec Deck','Bicep Curls','Hammer Curls','Preacher Curls','Free Weight Row','Cable Row','Bench Bicep Curl','Rope Hammer Curl'],
+  Legs: ['Squats','Leg Press','Hack Squats','Front Squats','Romanian Deadlifts','Leg Curls','Good Mornings','Leg Extensions','Sissy Squats','Hamstring Curls','Glute Ham Raises','Calf Raises','Seated Calf Raises','Lunges','Back Extensions','Hip Abductors'],
+  Core: ['Leg Raises','Pallof Press']
 };
 const NEED_STREAK = 3;      // "needs attention" — same sets N sessions running
 const REST_SECONDS = 90;
@@ -107,6 +130,9 @@ const WEIGHT_STEP = 0.5;
 /* ============================== STATE ============================== */
 let history = safeParse(localStorage.getItem('workout_history'), []);
 let customExercises = safeParse(localStorage.getItem('workout_custom_exercises'), []);
+let activeSplit = localStorage.getItem('workout_split');
+if (!SPLITS[activeSplit]) activeSplit = DEFAULT_SPLIT;
+localStorage.setItem('workout_split', activeSplit); // keeps it in every export
 
 const state = {
   tab: 'dashboard',       // dashboard | active-workout | detail | pbs
@@ -147,6 +173,15 @@ function dateShort(ts) { return new Date(ts).toLocaleDateString('en-GB', { day: 
 function vol(s) { return s.exercises.reduce((t, e) => t + e.sets.reduce((x, st) => x + (Number(st.weight) || 0) * (Number(st.reps) || 0), 0), 0); }
 function setCount(s) { return s.exercises.reduce((t, e) => t + e.sets.length, 0); }
 function sig(e) { return e.sets.map(st => (Number(st.weight) || 0) + 'x' + (Number(st.reps) || 0)).join('|'); }
+function progOf(h) { return h.program || 'ppl'; }   // sessions logged before split-switching existed are PPL
+function lastSession(name, program) { return history.find(h => h.split === name && progOf(h) === program); }
+function setSplit(id) {
+  if (!SPLITS[id] || id === activeSplit) return;
+  activeSplit = id;
+  localStorage.setItem('workout_split', id);
+  flash('SWITCHED TO ' + SPLITS[id].short);
+  render();
+}
 function lastFor(name) {
   const s = history.find(h => h.exercises.some(e => e.name === name));
   return s ? s.exercises.find(e => e.name === name) : null;
@@ -207,10 +242,24 @@ function stopRest() {
 
 /* ============================== SESSION LIFECYCLE ============================== */
 function startWorkout(split, fromSession) {
-  const src = fromSession ? fromSession.exercises
-    : (history.find(h => h.split === split) || { exercises: EXERCISE_GROUPS[split].slice(0, 5).map(name => ({ name, sets: [{ weight: 0, reps: 8 }] })) }).exercises;
+  const program = fromSession ? progOf(fromSession) : activeSplit;
+  let src;
+  if (fromSession) src = fromSession.exercises;
+  else {
+    const prevSession = lastSession(split, program);
+    if (prevSession) src = prevSession.exercises;
+    else {
+      // First time on this workout in this split: load the defaults, pre-filled with the
+      // last logged sets for each exercise so progress from other splits carries over.
+      const def = workoutDef(program, split);
+      src = (def ? def.defaults : []).map(name => {
+        const prev = lastFor(name);
+        return { name, sets: prev && prev.sets.length ? prev.sets : [{ weight: 0, reps: 8 }] };
+      });
+    }
+  }
   state.session = {
-    split, date: Date.now(),
+    split, program, date: Date.now(),
     exercises: src.map(e => ({ name: e.name, prev: e.sets.map(s => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 })), sets: e.sets.map(s => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, done: false })) }))
   };
   state.detailId = null;
@@ -242,7 +291,7 @@ function pickExercise(name) {
 function finishWorkout() {
   const sess = state.session;
   const rec = {
-    id: 'n' + Date.now(), split: sess.split, date: Date.now(),
+    id: 'n' + Date.now(), split: sess.split, program: sess.program || 'ppl', date: Date.now(),
     exercises: sess.exercises.map(e => ({ name: e.name, sets: e.sets.map(x => ({ weight: x.weight, reps: x.reps })) }))
   };
   stopRest();
@@ -309,6 +358,7 @@ function normalizeImportedSession(s) {
   return {
     id: s.id != null ? String(s.id) : ('n' + (Number.isFinite(dateVal) ? dateVal : Date.now()) + Math.random().toString(36).slice(2, 7)),
     split: s.split || s.type || 'Push',
+    program: SPLITS[s.program] ? s.program : 'ppl',
     date: Number.isFinite(dateVal) ? dateVal : Date.now(),
     exercises: (s.exercises || []).map(e => ({
       name: e.name,
@@ -414,7 +464,7 @@ function renderHeader() {
     left.innerHTML = `
       <div style="display:flex;align-items:center;gap:9px">
         <div style="width:10px;height:22px;background:linear-gradient(180deg,${COLOR.gold},#8A6C33);border-radius:2px"></div>
-        <div class="mono" style="font-size:10px;letter-spacing:.22em;color:${COLOR.m2}">PPL LOG</div>
+        <div class="mono" style="font-size:10px;letter-spacing:.22em;color:${COLOR.m2}">${esc(SPLITS[activeSplit].logLabel)}</div>
       </div>`;
   } else {
     left.innerHTML = '';
@@ -468,14 +518,15 @@ function renderDashboard() {
       </div>
     </button>`).join('') : `<div style="padding:18px 16px;background:#111011;font-size:13px;color:${COLOR.m3};line-height:1.5">Nothing stalled — every exercise has changed within the last ${NEED_STREAK} sessions.</div>`;
 
-  const starters = ['Push', 'Pull', 'Legs'].map(type => {
-    const prev = history.find(h => h.split === type);
-    const sub = prev ? dateShort(prev.date) + ' · ' + prev.exercises.length + ' exercises · ' + fmt(vol(prev)) + ' ' + UNIT : 'no history';
+  const starters = SPLITS[activeSplit].workouts.map(w => {
+    const type = w.name;
+    const prev = lastSession(type, activeSplit);
+    const sub = prev ? dateShort(prev.date) + ' · ' + prev.exercises.length + ' exercises · ' + fmt(vol(prev)) + ' ' + UNIT : 'no history · ' + w.defaults.length + ' exercises';
     return `
     <button onclick="startWorkout(${esc(JSON.stringify(type))})" class="row-btn" style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;background:#121214;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px;color:${COLOR.text}">
-      <div style="width:3px;height:34px;border-radius:2px;background:${BAR[type]}"></div>
+      <div style="width:3px;height:34px;border-radius:2px;background:${w.color}"></div>
       <div>
-        <div style="font-size:17px;font-weight:600;letter-spacing:-.01em">${type}</div>
+        <div style="font-size:17px;font-weight:600;letter-spacing:-.01em">${esc(type)}</div>
         <div class="mono" style="font-size:10.5px;color:${COLOR.m3};margin-top:4px">${sub}</div>
       </div>
       <div class="mono" style="font-size:11px;color:${COLOR.gold};letter-spacing:.1em">GO</div>
@@ -523,6 +574,17 @@ function renderDashboard() {
         </label>
       </div>
       <div style="font-size:11.5px;color:${COLOR.m2};margin-top:10px;line-height:1.5">Export before clearing history or switching phones.</div>
+    </div>
+
+    <div style="margin-top:16px;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;background:#101012">
+      <div class="mono" style="font-size:10px;letter-spacing:.18em;color:${COLOR.m2};margin-bottom:10px">TRAINING SPLIT</div>
+      <div style="display:flex;gap:10px">
+        ${Object.keys(SPLITS).map(id => {
+          const on = id === activeSplit;
+          return `<button onclick="setSplit(${esc(JSON.stringify(id))})" style="flex:1;background:${on ? COLOR.gold : 'transparent'};border:1px solid ${on ? COLOR.gold : 'rgba(255,255,255,.14)'};color:${on ? COLOR.goldFg : COLOR.m5};border-radius:10px;padding:11px 6px;font-size:13px;font-weight:${on ? 700 : 600};cursor:pointer">${esc(SPLITS[id].label)}</button>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11.5px;color:${COLOR.m2};margin-top:10px;line-height:1.5">Switching only changes the workouts above. Your history, PBs and custom exercises are kept.</div>
     </div>
   `;
 }
